@@ -61,38 +61,32 @@ The workhorse of our generative content. Fast, efficient, and deeply integrated 
 
 ## ⚡ Serverless Functions (Inngest)
 
-Our background jobs are defined in `lib/inngest/functions.ts`.
+Our background jobs are defined in `lib/inngest/functions.ts`. This is a
+private, single-owner deployment, so the multi-user broadcast/re-engagement
+jobs that existed upstream (a weekly newsletter and an inactive-user
+win-back email, both built on a Kit/ConvertKit integration) were removed —
+see `docs/architecture.md`. Only two jobs remain:
 
 | ID | Type | Schedule/Trigger | Purpose |
 | :--- | :--- | :--- | :--- |
-| `sign-up-email` | 🔔 Event | `app/user.created` | **Personalized Onboarding.** Generates a custom welcome message based on user quiz results. |
-| `weekly-news-summary` | ⏱️ Cron | `0 9 * * 1` (Mon 9AM) | **Market Intelligence.** Summarizes top financial news and broadcasts to all users via Kit. |
+| `sign-up-email` | 🔔 Event | `app/user.created` | **Personalized Onboarding.** Generates a custom welcome message based on user quiz results (optional — skipped automatically if AI/email aren't configured). |
 | `check-stock-alerts` | ⏱️ Cron | `*/5 * * * *` | **Real-time Monitoring.** Checks user price targets against live market data. |
-| `check-inactive-users` | ⏱️ Cron | `0 10 * * *` | **Re-engagement.** Identifies dormant users (>30 days) and sends a "We miss you" nudge. |
 
 ---
 
 ## 🔌 API Integrations
+
+Accessed exclusively through `lib/market-data/` (see `docs/market-data.md`)
+— nothing else in the app talks to a provider directly.
 
 <details>
 <summary><b>📈 Stock Data: Finnhub</b></summary>
 <br/>
 
 *   **Base URL:** `https://finnhub.io/api/v1`
-*   **Key Features:** Real-time quotes, technical indicators, market news.
-*   **Auth:** `NEXT_PUBLIC_FINNHUB_API_KEY`
-
-</details>
-
-<details>
-<summary><b>📧 Email & Marketing: Kit (ConvertKit)</b></summary>
-<br/>
-
-*   **Role:** High-volume user broadcasts and tag management.
-*   **Key Endpoints:**
-    *   `POST /v3/tags/{tag_id}/subscribe` (User Migration)
-    *   `POST /v3/broadcasts` (Newsletters)
-*   **Auth:** `KIT_API_KEY` • `KIT_API_SECRET`
+*   **Key Features:** Real-time quotes, company profiles/financials, market news, symbol search.
+*   **Auth:** `FINNHUB_API_KEY` (server-side only — no `NEXT_PUBLIC_` prefix)
+*   **Historical daily bars:** the free tier does not include Finnhub's candle endpoint for most keys; falls back to Stooq's free daily-bar CSV (no key required) — see `docs/market-data.md`.
 
 </details>
 

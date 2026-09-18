@@ -8,7 +8,6 @@ import {
   Clock,
   Database,
   Mail,
-  BarChart2,
   Zap,
   ArrowRight,
   CheckCircle2,
@@ -145,13 +144,6 @@ export default function ApiDocsPage() {
             color="purple"
           />
           <JobCard
-            icon={<BarChart2 size={20} />}
-            title="Weekly News"
-            trigger="Cron: Mon 9am"
-            desc="Summarizes market news and broadcasts via ConvertKit."
-            color="teal"
-          />
-          <JobCard
             icon={<Clock size={20} />}
             title="Stock Alerts"
             trigger="Cron: 5m"
@@ -159,10 +151,17 @@ export default function ApiDocsPage() {
             color="yellow"
           />
           <JobCard
+            icon={<Cpu size={20} />}
+            title="Swing Analysis"
+            trigger="On demand"
+            desc="Deterministic technical-indicator and rule engine — no AI in scoring."
+            color="teal"
+          />
+          <JobCard
             icon={<AlertTriangle size={20} />}
-            title="Re-engagement"
-            trigger="Cron: Daily"
-            desc="Identifies dormant users and sends nudges."
+            title="Market Data Fallback"
+            trigger="On demand"
+            desc="Falls back to free Stooq daily bars if Finnhub's plan restricts history."
             color="red"
           />
         </div>
@@ -182,9 +181,9 @@ export default function ApiDocsPage() {
             url="https://finnhub.io"
           />
           <StackItem
-            title="ConvertKit (Kit)"
-            desc="High-volume newsletter broadcasts and user tagging."
-            url="https://kit.com"
+            title="Stooq"
+            desc="Free, no-key daily historical bars — fallback when Finnhub's plan doesn't include candles."
+            url="https://stooq.com"
           />
           <StackItem
             title="MongoDB Atlas"

@@ -34,7 +34,23 @@
   </div>
 </div>
 
-# OpenStock
+# OpenStock — Private Swing Trading Research Terminal
+
+> **This is a private fork.** This repository is [Open-Dev-Society/OpenStock](https://github.com/Open-Dev-Society/OpenStock)
+> (AGPL-3.0) re-purposed as a personal, single-owner **research terminal**
+> for identifying, analyzing, and tracking swing-trading setups. It is not
+> a public product, it does not execute trades, and it does not generate
+> AI buy/sell signals — every score and rule you'll see is deterministic,
+> transparent code, not a black box. See:
+> - [`docs/architecture.md`](docs/architecture.md) — what changed from upstream OpenStock, and why
+> - [`docs/swing-engine.md`](docs/swing-engine.md) — the analysis engine
+> - [`docs/deployment-netlify.md`](docs/deployment-netlify.md) — deploying your own private instance
+> - [`PROGRESS.md`](PROGRESS.md) — what's implemented versus planned
+>
+> The rest of this README is the original upstream OpenStock documentation,
+> kept intact per the AGPL-3.0 license and to credit the original authors —
+> update it as the fork's own features (see the docs above) diverge further
+> from the base app it started from.
 
 OpenStock is an open-source alternative to expensive market platforms. Track real-time prices, set personalized alerts, and explore detailed company insights — built openly, for everyone, forever free.
 
@@ -116,13 +132,19 @@ Language composition
     - TradingView symbol info, candlestick/advanced charts, baseline, technicals
     - Company profile and financials widgets
     - Optional cross-source sentiment insights for Reddit, X.com, news, and Polymarket
+- **Swing Analysis** (new — see [`docs/swing-engine.md`](docs/swing-engine.md))
+    - Deterministic technical-indicator engine (SMA/EMA/RSI/MACD/Stochastic/Bollinger/ATR/volume/momentum/volatility)
+    - Transparent, rule-by-rule swing score (0–100) with a documented trade plan (entry/stop/targets) — never a black-box number
+    - Falls back to free Stooq daily bars when Finnhub's free tier doesn't include historical candles
 - Market overview
     - Heatmap, quotes, and top stories (TradingView widgets)
 - Personalized onboarding
     - Collects country, investment goals, risk tolerance, preferred industry
 - Email & automation
-    - AI-personalized welcome email (Gemini via Inngest)
-    - Daily news summary emails (cron) personalized using user watchlists
+    - AI-personalized welcome email (Gemini via Inngest) — optional, skipped automatically if unconfigured
+    - Price-alert checks every 5 minutes (Inngest cron)
+- Private access (new — see [`docs/architecture.md`](docs/architecture.md))
+    - `AUTHORIZED_EMAIL` allowlist restricts sign-up to the deployment's owner
 - Polished UI
     - shadcn/ui components, Radix primitives, Tailwind v4 design tokens
     - Dark theme by default
@@ -134,14 +156,13 @@ Language composition
 Prerequisites
 - Node.js 20+ and pnpm or npm
 - MongoDB connection string (MongoDB Atlas or local via Docker Compose)
-- Finnhub API key (free tier supported; real-time may require paid)
-- Gmail account for email (or update Nodemailer transport)
-- Optional: Google Gemini API key (for AI-generated welcome intros)
+- Finnhub API key (free tier supported; historical daily bars fall back to Stooq — see [`docs/market-data.md`](docs/market-data.md))
+- Everything else (email, AI, Adanos, Inngest) is optional — see [`.env.example`](.env.example)
 
 Clone and install
 ```bash
-git clone https://github.com/Open-Dev-Society/OpenStock.git
-cd OpenStock
+git clone <your-fork-url>
+cd ostrade
 
 # choose one:
 pnpm install
@@ -236,141 +257,106 @@ volumes:
 
 ## 🔐 Environment Variables <a name="environment-variables"></a>
 
-Create `.env` at the project root. Choose either a hosted MongoDB (Atlas) URI or the local Docker URI.
+See [`.env.example`](.env.example) for the authoritative, up-to-date list —
+it documents every variable the code actually reads, with optional ones
+clearly marked. Copy it to `.env` for local development.
 
-Hosted (MongoDB Atlas):
 ```env
-# Core
+# Core (required)
 NODE_ENV=development
 
-# Database (Atlas)
+# Database (required) — Atlas or the local Docker Compose instance
 MONGODB_URI=mongodb+srv://<user>:<pass>@<cluster>/<db>?retryWrites=true&w=majority
+# or, for Docker Compose: mongodb://root:example@localhost:27017/openstock?authSource=admin
 
-# Better Auth
+# Better Auth (required)
 BETTER_AUTH_SECRET=your_better_auth_secret
 BETTER_AUTH_URL=http://localhost:3000
 
-# Finnhub
-# Note: NEXT_PUBLIC_FINNHUB_API_KEY is required for Vercel deployment
-NEXT_PUBLIC_FINNHUB_API_KEY=your_finnhub_key
-FINNHUB_BASE_URL=https://finnhub.io/api/v1
+# Private terminal access (optional, strongly recommended once your own
+# account exists — see docs/architecture.md)
+AUTHORIZED_EMAIL=
 
-# Sentiment insights (optional)
-ADANOS_API_KEY=your_adanos_api_key
-# ADANOS_API_BASE_URL=https://api.adanos.org
+# Finnhub (required) — server-side only, do NOT prefix with NEXT_PUBLIC_
+FINNHUB_API_KEY=your_finnhub_key
+# FINNHUB_BASE_URL=https://finnhub.io/api/v1
 
-# AI Provider (optional, default: "gemini")
-# Supported: "gemini", "minimax", "siray"
-# AI_PROVIDER=gemini
-
-# Gemini
-GEMINI_API_KEY=your_gemini_api_key
-
-# MiniMax (optional, used when AI_PROVIDER=minimax or as fallback)
-# Get your key at https://platform.minimaxi.com
-# MINIMAX_API_KEY=your_minimax_api_key
-
-# Inngest Signing Key (required for Vercel deployment)
-# Get this from your Inngest dashboard: https://app.inngest.com/env/settings/keys
-INNGEST_SIGNING_KEY=your_inngest_signing_key
-
-# Email (Nodemailer via Gmail; consider App Passwords if 2FA)
-NODEMAILER_EMAIL=youraddress@gmail.com
-NODEMAILER_PASSWORD=your_gmail_app_password
-```
-
-Local (Docker Compose) MongoDB:
-```env
-# Core
-NODE_ENV=development
-
-# Database (Docker)
-MONGODB_URI=mongodb://root:example@mongodb:27017/openstock?authSource=admin
-
-# Better Auth
-BETTER_AUTH_SECRET=your_better_auth_secret
-BETTER_AUTH_URL=http://localhost:3000
-
-# Finnhub
-# Note: NEXT_PUBLIC_FINNHUB_API_KEY is required for Vercel deployment
-NEXT_PUBLIC_FINNHUB_API_KEY=your_finnhub_key
-FINNHUB_BASE_URL=https://finnhub.io/api/v1
-
-# Sentiment insights (optional)
-ADANOS_API_KEY=your_adanos_api_key
-# ADANOS_API_BASE_URL=https://api.adanos.org
-
-# AI Provider (optional, default: "gemini")
-# Supported: "gemini", "minimax", "siray"
-# AI_PROVIDER=gemini
-
-# Gemini
-GEMINI_API_KEY=your_gemini_api_key
-
-# MiniMax (optional, used when AI_PROVIDER=minimax or as fallback)
-# Get your key at https://platform.minimaxi.com
-# MINIMAX_API_KEY=your_minimax_api_key
-
-# Inngest Signing Key (required for Vercel deployment)
-# Get this from your Inngest dashboard: https://app.inngest.com/env/settings/keys
-INNGEST_SIGNING_KEY=your_inngest_signing_key
-
-# Email (Nodemailer via Gmail; consider App Passwords if 2FA)
-NODEMAILER_EMAIL=youraddress@gmail.com
-NODEMAILER_PASSWORD=your_gmail_app_password
+# Everything below is optional — the app boots and every core feature
+# works without it. See .env.example for what each one enables.
+# ADANOS_API_KEY / ADANOS_API_BASE_URL     (sentiment card)
+# AI_PROVIDER / GEMINI_API_KEY / etc.       (welcome-email copy only)
+# INNGEST_SIGNING_KEY                       (background jobs, once deployed)
+# NODEMAILER_EMAIL / NODEMAILER_PASSWORD    (password reset + welcome email)
 ```
 
 Notes
-- Keep private keys server-side whenever possible.
-- If using `NEXT_PUBLIC_` variables, remember they are exposed to the browser.
+- Keep all keys server-side. `FINNHUB_API_KEY` deliberately has no
+  `NEXT_PUBLIC_` prefix — it's read only inside `'use server'` files and
+  must never end up in the browser bundle.
 - In production, prefer a dedicated SMTP provider over a personal Gmail.
 - Do not hardcode secrets in the Dockerfile; use `.env` and Compose.
+- For Netlify specifically, see [`docs/deployment-netlify.md`](docs/deployment-netlify.md).
 
 ## 🧱 Project Structure <a name="project-structure"></a>
 
 ```
 app/
   (auth)/
-    layout.tsx
+    layout.tsx           # force-dynamic; bounces signed-in users away
     sign-in/page.tsx
-    sign-up/page.tsx
+    sign-up/
+      page.tsx           # server-side AUTHORIZED_EMAIL gate (docs/architecture.md)
+      SignUpForm.tsx      # the actual client form
   (root)/
-    layout.tsx
+    layout.tsx           # force-dynamic; requires a session
     page.tsx
     help/page.tsx
-    stocks/[symbol]/page.tsx
+    stocks/[symbol]/page.tsx   # includes the Swing Analysis panel
   api/inngest/route.ts
   globals.css
   layout.tsx
 components/
   ui/…          # shadcn/radix primitives (button, dialog, command, input, etc.)
   forms/…       # InputField, SelectField, CountrySelectField, FooterLink
+  stocks/SwingAnalysisPanel.tsx
   Header.tsx, Footer.tsx, SearchCommand.tsx, WatchlistButton.tsx, …
 database/
-  models/watchlist.model.ts
+  models/{watchlist,alert}.model.ts
   mongoose.ts
 lib/
-  actions/…     # server actions (auth, finnhub, user, watchlist)
-  better-auth/…
-  inngest/…     # client, functions, prompts
-  nodemailer/…  # transporter, email templates
+  actions/…       # server actions (auth, finnhub adapter, watchlist, alert, swing)
+  better-auth/…    # lazily-initialized Better Auth instance
+  private-access.ts
+  inngest/…       # client, functions (welcome email + price-alert cron), prompts
+  nodemailer/…    # transporter, email templates
+  market-data/     # provider-agnostic market data — see docs/market-data.md
+    types.ts, service.ts, providers/{finnhub,stooq}.ts
+  technical/       # pure indicator functions — see docs/swing-engine.md
+  swing/           # the rule engine built on lib/technical — see docs/swing-engine.md
   constants.ts, utils.ts
 scripts/
-  test-db.mjs
+  test-db.ts, check-env.mjs
 types/
   global.d.ts
-next.config.ts          # i.ibb.co image domain allowlist
-postcss.config.mjs      # Tailwind v4 postcss setup
-components.json         # shadcn config
+docs/              # architecture, deployment, market-data, swing-engine, strategy-config, …
+PROGRESS.md         # what's implemented vs. planned
+netlify.toml        # @netlify/plugin-nextjs runtime config
+next.config.ts
+postcss.config.mjs   # Tailwind v4 postcss setup
+components.json      # shadcn config
 public/assets/images/   # logos and screenshots
 ```
 
 ## 📡 Data & Integrations <a name="data--integrations"></a>
 
-- Finnhub
-    - Stock search, company profiles, and market news.
-    - Set `NEXT_PUBLIC_FINNHUB_API_KEY` and `FINNHUB_BASE_URL` (default: https://finnhub.io/api/v1).
+- Market data provider abstraction (see [`docs/market-data.md`](docs/market-data.md))
+    - Nothing outside `lib/market-data/` talks to Finnhub directly.
+    - Finnhub: stock search, quotes, company profiles, financials, and market news. Set `FINNHUB_API_KEY` (server-side only — no `NEXT_PUBLIC_` prefix) and optionally `FINNHUB_BASE_URL`.
+    - Historical daily bars: Finnhub's candle endpoint first, falling back to Stooq's free daily-bar CSV when Finnhub reports a plan restriction — real data or a clear "unavailable" result, never fabricated.
     - Free tiers may return delayed quotes; respect rate limits and terms.
+
+- Swing Analysis Engine (see [`docs/swing-engine.md`](docs/swing-engine.md))
+    - Deterministic technical indicators (`lib/technical/`) and a configurable rule engine (`lib/swing/`) — no AI involved in scoring or rules.
 
 - Adanos sentiment insights (optional)
     - Structured stock sentiment snapshots across Reddit, X.com, news, and Polymarket.
@@ -387,13 +373,13 @@ public/assets/images/   # logos and screenshots
 
 - Inngest
     - Workflows:
-        - `app/user.created` → AI-personalized Welcome Email
-        - Cron `0 12 * * *` → Daily News Summary per user
+        - `app/user.created` → AI-personalized Welcome Email (optional; skipped if unconfigured)
+        - Cron `*/5 * * * *` → checks active price alerts against current quotes
     - Local dev: `npx inngest-cli@latest dev`.
 
 - Email (Nodemailer)
     - Gmail transport. Update credentials or switch to your SMTP provider.
-    - Templates for welcome and news summary emails.
+    - Template for the welcome email; password-reset email is separate (`lib/nodemailer/reset-password.ts`).
 
 
 ## 🌍 Market Support <a name="market-support"></a>
@@ -419,10 +405,13 @@ For the latest supported symbols and exchanges, see [Finnhub's exchange list](ht
 
 Package scripts
 - `dev`: Next.js dev server with Turbopack
-- `build`: Production build (Turbopack)
+- `build`: Production build (Turbopack) — must succeed with no `.env` present; see [`docs/architecture.md`](docs/architecture.md)
 - `start`: Run production server
-- `lint`: ESLint
+- `lint`: ESLint (strict — no `ignoreDuringBuilds` escape hatch)
+- `typecheck`: `tsc --noEmit` (strict — no `ignoreBuildErrors` escape hatch)
+- `test` / `test:watch`: Vitest
 - `test:db`: Validate DB connectivity
+- `check-env`: Reports which environment variables are set/missing
 
 Developer experience
 - TypeScript strict mode
