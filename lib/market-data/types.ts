@@ -119,6 +119,32 @@ export type MarketDataResult<T> =
     | { ok: true; data: T }
     | { ok: false; error: MarketDataError };
 
+/** A short, user-facing message for each failure kind — never expose raw
+ * provider error text (which may include internals) to the UI. See the
+ * "no fake data in production" / error-handling guidance in
+ * docs/market-data.md. */
+export function describeMarketDataError(error: MarketDataError): string {
+    switch (error.kind) {
+        case 'not_configured':
+            return 'Market data is not configured for this deployment yet.';
+        case 'auth':
+            return 'Market data provider rejected the configured credentials.';
+        case 'rate_limit':
+            return 'Market data provider rate limit reached — try again shortly.';
+        case 'plan_restricted':
+            return 'This data requires a higher-tier plan with the market data provider.';
+        case 'not_found':
+            return 'No data found for this symbol.';
+        case 'network':
+            return 'Could not reach the market data provider.';
+        case 'bad_response':
+            return 'Market data provider returned an unexpected response.';
+        case 'unavailable':
+        default:
+            return 'Market data is temporarily unavailable.';
+    }
+}
+
 export interface MarketDataProvider {
     readonly id: string;
     getQuote(symbol: string): Promise<MarketDataResult<Quote>>;

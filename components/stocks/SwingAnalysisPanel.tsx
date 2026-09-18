@@ -1,0 +1,168 @@
+import { CheckCircle2, XCircle, TriangleAlert } from 'lucide-react';
+import type { SwingAnalysisOutcome } from '@/lib/actions/swing.actions';
+import type { PriceZone, RuleResult, SwingStatus } from '@/lib/swing/types';
+import { formatPrice } from '@/lib/utils';
+
+function formatZone(zone: PriceZone): string {
+    return `${formatPrice(zone.low)} - ${formatPrice(zone.high)}`;
+}
+
+function statusLabel(status: SwingStatus): string {
+    if (status === 'QUALIFIED') return 'Qualified Setup';
+    if (status === 'WATCH') return 'Watch';
+    return 'Pass';
+}
+
+function statusClasses(status: SwingStatus): string {
+    if (status === 'QUALIFIED') return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+    if (status === 'WATCH') return 'bg-amber-500/10 text-amber-300 border-amber-500/30';
+    return 'bg-gray-500/10 text-gray-400 border-gray-500/30';
+}
+
+function RuleRow({ rule }: { rule: RuleResult }) {
+    return (
+        <div className="flex items-start justify-between gap-4 rounded-lg border border-gray-800 bg-black/20 p-3">
+            <div className="flex items-start gap-3">
+                {rule.passed ? (
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+                ) : (
+                    <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-400" />
+                )}
+                <div>
+                    <p className="text-sm font-semibold text-white">
+                        {rule.name}
+                        {rule.value !== undefined ? <span className="ml-2 font-normal text-gray-400">{String(rule.value)}</span> : null}
+                    </p>
+                    <p className="mt-1 text-xs text-gray-500">{rule.explanation}</p>
+                </div>
+            </div>
+            <span className={`shrink-0 text-xs font-semibold ${rule.passed ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {rule.score}/{rule.maxScore}
+            </span>
+        </div>
+    );
+}
+
+export default function SwingAnalysisPanel({ outcome }: { outcome: SwingAnalysisOutcome }) {
+    if (outcome.status === 'unavailable') {
+        return (
+            <section className="rounded-2xl border border-gray-800 bg-gray-950/40 p-5 backdrop-blur-sm">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gray-500">Swing Analysis</p>
+                <div className="mt-3 flex items-center gap-2 text-sm text-gray-400">
+                    <TriangleAlert className="h-4 w-4 shrink-0 text-amber-400" />
+                    <span>{outcome.reason}</span>
+                </div>
+            </section>
+        );
+    }
+
+    const { analysis } = outcome;
+    const passedCount = analysis.rules.filter((r) => r.passed).length;
+
+    return (
+        <section className="rounded-2xl border border-gray-800 bg-gray-950/40 p-5 backdrop-blur-sm">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gray-500">Swing Analysis</p>
+                    <h2 className="mt-2 text-xl font-semibold text-white">
+                        {analysis.setupType ? analysis.setupType.replace(/_/g, ' ') : 'No setup'} setup
+                    </h2>
+                    <p className="mt-1 text-sm text-gray-500">
+                        This is research output, not investment advice — the owner remains responsible for any
+                        decisions. {passedCount}/{analysis.rules.length} rules passed.
+                    </p>
+                </div>
+
+                <div className="flex items-center gap-3 rounded-2xl border border-gray-800 bg-black/20 p-4">
+                    <div>
+                        <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-gray-500">Swing Score</p>
+                        <p className="mt-1 text-2xl font-semibold text-white">
+                            {analysis.score}
+                            <span className="text-sm font-normal text-gray-500"> / {analysis.maxScore}</span>
+                        </p>
+                    </div>
+                    <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusClasses(analysis.status)}`}>
+                        {statusLabel(analysis.status)}
+                    </span>
+                </div>
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-2 md:grid-cols-2">
+                {analysis.rules.map((rule) => (
+                    <RuleRow key={rule.id} rule={rule} />
+                ))}
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="rounded-xl border border-gray-800 bg-black/20 p-4">
+                    <h3 className="text-sm font-semibold text-white">Levels</h3>
+                    <dl className="mt-3 space-y-2 text-sm">
+                        <div className="flex justify-between gap-2">
+                            <dt className="text-gray-500">Support</dt>
+                            <dd className="text-right text-gray-300">
+                                {analysis.supportLevels && analysis.supportLevels.length > 0
+                                    ? analysis.supportLevels.map(formatZone).join(', ')
+                                    : 'Unavailable'}
+                            </dd>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                            <dt className="text-gray-500">Resistance</dt>
+                            <dd className="text-right text-gray-300">
+                                {analysis.resistanceLevels && analysis.resistanceLevels.length > 0
+                                    ? analysis.resistanceLevels.map(formatZone).join(', ')
+                                    : 'Unavailable'}
+                            </dd>
+                        </div>
+                    </dl>
+                </div>
+
+                <div className="rounded-xl border border-gray-800 bg-black/20 p-4">
+                    <h3 className="text-sm font-semibold text-white">Trade Plan</h3>
+                    <dl className="mt-3 space-y-2 text-sm">
+                        <div className="flex justify-between gap-2">
+                            <dt className="text-gray-500">Entry Zone</dt>
+                            <dd className="text-right text-gray-300">
+                                {analysis.entryZone ? formatZone(analysis.entryZone) : 'Unavailable'}
+                            </dd>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                            <dt className="text-gray-500">Invalidation</dt>
+                            <dd className="text-right text-gray-300">
+                                {analysis.stopLevel !== undefined ? formatPrice(analysis.stopLevel) : 'Unavailable'}
+                            </dd>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                            <dt className="text-gray-500">Target 1</dt>
+                            <dd className="text-right text-gray-300">
+                                {analysis.targets?.[0] !== undefined ? formatPrice(analysis.targets[0]) : 'Unavailable'}
+                            </dd>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                            <dt className="text-gray-500">Target 2</dt>
+                            <dd className="text-right text-gray-300">
+                                {analysis.targets?.[1] !== undefined ? formatPrice(analysis.targets[1]) : 'Unavailable'}
+                            </dd>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                            <dt className="text-gray-500">Potential R/R</dt>
+                            <dd className="text-right text-gray-300">
+                                {analysis.riskReward !== undefined ? `1 : ${analysis.riskReward.toFixed(2)}` : 'Unavailable'}
+                            </dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+
+            {analysis.warnings && analysis.warnings.length > 0 ? (
+                <div className="mt-4 space-y-2">
+                    {analysis.warnings.map((warning) => (
+                        <div key={warning} className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-amber-300">
+                            <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                            <span>{warning}</span>
+                        </div>
+                    ))}
+                </div>
+            ) : null}
+        </section>
+    );
+}
