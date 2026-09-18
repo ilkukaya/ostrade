@@ -1,0 +1,12 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Official Next.js runtime for Netlify: translates the App Router build
+# (server components, route handlers, middleware) into Netlify Functions
+# and Edge Functions automatically. No manual adapter config needed.
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
