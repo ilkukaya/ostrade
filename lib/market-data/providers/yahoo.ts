@@ -79,8 +79,14 @@ function toProviderSymbol(symbol: string): string {
     return resolveInstrument(symbol).providerSymbol ?? symbol.toUpperCase();
 }
 
-async function fetchYahooChart(providerSymbol: string, range: string): Promise<YahooChartResult> {
-    const url = `${YAHOO_CHART_BASE_URL}/${encodeURIComponent(providerSymbol)}?range=${range}&interval=1d&events=div%2Csplits`;
+type YahooChartWindow = { range: string } | { period1: number; period2: number };
+
+async function fetchYahooChart(providerSymbol: string, window: YahooChartWindow): Promise<YahooChartResult> {
+    const query =
+        'range' in window
+            ? `range=${window.range}`
+            : `period1=${window.period1}&period2=${window.period2}`;
+    const url = `${YAHOO_CHART_BASE_URL}/${encodeURIComponent(providerSymbol)}?${query}&interval=1d&events=div%2Csplits`;
 
     let res: Response;
     try {
@@ -194,7 +200,17 @@ async function getHistoricalPrices(symbol: string, timeframe: Timeframe): Promis
         // "max" — the sync engine (not this provider) decides how much of
         // it a given caller actually needs; see lib/market-data/historicalDataRepository.ts
         // and docs/market-data.md's "Scanner input window" note.
-        const result = await fetchYahooChart(toProviderSymbol(symbol), 'max');
+        // Yahoo may silently coarsen range=max despite interval=1d. Use an
+        // explicit period window so the response remains true daily bars.
+        // Three years is enough for the app's 2-year backtest plus indicator
+        // warm-up while keeping the free MongoDB Atlas footprint bounded.
+        const now = new Date();
+        const start = new Date(now);
+        start.setUTCFullYear(start.getUTCFullYear() - 3);
+        const result = await fetchYahooChart(toProviderSymbol(symbol), {
+            period1: Math.floor(start.getTime() / 1000),
+            period2: Math.floor(now.getTime() / 1000) + 86400,
+        });
         const bars = toBars(result);
         if (bars.length === 0) {
             return fail(new MarketDataError('not_found', `No historical data available for ${symbol}`), 'not found');
@@ -207,7 +223,7 @@ async function getHistoricalPrices(symbol: string, timeframe: Timeframe): Promis
 
 async function getQuote(symbol: string): Promise<MarketDataResult<Quote>> {
     try {
-        const result = await fetchYahooChart(toProviderSymbol(symbol), '5d');
+        const result = await fetchYahooChart(toProviderSymbol(symbol), { range: '5d' });
         const meta = result.meta ?? {};
         const bars = toBars(result);
         const lastBar = bars[bars.length - 1];
