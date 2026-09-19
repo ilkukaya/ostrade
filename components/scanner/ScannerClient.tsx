@@ -265,6 +265,7 @@ export default function ScannerClient({ universes }: { universes: UniverseOption
 
             <ResultsTable
                 results={filteredResults}
+                currency={universes.find((u) => u.id === universeId)?.market === 'TR' ? 'TRY' : 'USD'}
                 expandedSymbol={expandedSymbol}
                 onToggleExpand={(symbol) => setExpandedSymbol((s) => (s === symbol ? null : symbol))}
             />
@@ -309,10 +310,12 @@ function NumberInput({
 
 function ResultsTable({
     results,
+    currency,
     expandedSymbol,
     onToggleExpand,
 }: {
     results: ScannerResult[];
+    currency: string;
     expandedSymbol: string | null;
     onToggleExpand: (symbol: string) => void;
 }) {
@@ -373,7 +376,7 @@ function ResultRow({ result, expanded, onToggleExpand }: { result: ScannerResult
                     </Link>
                 </td>
                 <td className="px-3 py-3 text-gray-400">{result.companyName ?? '—'}</td>
-                <td className="px-3 py-3 text-right text-gray-200">{formatPrice(result.price)}</td>
+                <td className="px-3 py-3 text-right text-gray-200">{formatPrice(result.price, currency)}</td>
                 <td className={`px-3 py-3 text-right ${getChangeColorClass(result.changePercent)}`}>{formatChangePercent(result.changePercent)}</td>
                 <td className="px-3 py-3 text-right font-semibold text-white">
                     {analysis.score}
