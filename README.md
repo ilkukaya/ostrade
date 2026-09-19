@@ -285,7 +285,7 @@ AUTHORIZED_EMAIL=
 # FINNHUB_API_KEY / FINNHUB_BASE_URL        (richer live quotes/financials/news)
 # ADANOS_API_KEY / ADANOS_API_BASE_URL     (sentiment card)
 # AI_PROVIDER / GEMINI_API_KEY / etc.       (welcome-email copy only)
-# INNGEST_SIGNING_KEY                       (background jobs, once deployed)
+# INNGEST_SIGNING_KEY / INNGEST_EVENT_KEY   (background jobs, once deployed)
 # NODEMAILER_EMAIL / NODEMAILER_PASSWORD    (password reset + welcome email)
 ```
 

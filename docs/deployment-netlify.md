@@ -6,7 +6,10 @@ cost table). This walks through getting the private terminal live.
 ## 1. MongoDB Atlas (free tier)
 
 1. Create a free ("M0") cluster at [mongodb.com/atlas](https://www.mongodb.com/atlas).
-2. Create a database user (Database Access) with a strong password.
+2. Create a **dedicated database user** (Database Access → Add New Database
+   User) with a strong, randomly generated password — do **not** reuse your
+   Atlas account login password here. This user is what `MONGODB_URI`
+   authenticates as; scope it to this one database.
 3. **Network Access → Add IP Address → Allow Access from Anywhere
    (0.0.0.0/0).** Netlify's build and function infrastructure doesn't use
    static IPs, so an IP allowlist restricted to specific addresses will
@@ -15,6 +18,20 @@ cost table). This walks through getting the private terminal live.
    the correct username/password.
 4. Copy the connection string (`mongodb+srv://...`) — this is your
    `MONGODB_URI`.
+
+This app's Mongoose connection (`database/mongoose.ts`) already follows the
+pattern serverless platforms need: a module-scoped cache (`global.mongooseCache`)
+reused across warm invocations of the same function instance rather than
+reconnecting on every call, `bufferCommands: false` so a dropped connection
+fails fast instead of hanging a request, and no connection attempt anywhere
+at build/import time — `connectToDatabase()` only ever runs inside a request
+handler or server action. Nothing about this needs to change for Netlify.
+
+Two collections grow without a TTL by design (`MarketBar`, `DailyAnalysisSnapshot`
+— see below); everything else that's meant to be ephemeral (`ScannerRun`) has
+an explicit `expireAfterSeconds` index. If you ever add a new collection,
+decide its retention deliberately rather than letting Mongoose's defaults
+decide for you.
 
 ## 2. Market data — no signup required
 
@@ -30,11 +47,15 @@ without it.
 
 ## 3. Netlify project
 
-1. Push this repository to GitHub (or your own fork/remote).
+1. Push this repository to GitHub (or your own fork/remote) — the production
+   branch is `main` (see below).
 2. In Netlify: **Add new site → Import an existing project**, pick the
-   repo. `netlify.toml` already declares the build command and the
-   official `@netlify/plugin-nextjs` runtime — no manual build
-   configuration needed.
+   repo, and name the site `ostrade` (as of this writing there is no
+   Netlify project by that name yet in this account — you're creating it
+   fresh, not reconfiguring an existing one). `netlify.toml` already
+   declares the build command and the official `@netlify/plugin-nextjs`
+   runtime — no manual build configuration needed. Set the production
+   branch to `main` in **Site configuration → Build & deploy → Branches**.
 3. **Site configuration → Environment variables** — add everything in
    `.env.example` that isn't commented out as optional. At minimum:
    - `MONGODB_URI`
@@ -72,10 +93,15 @@ stock detail, swing analysis) works without them:
 - **Email** (`NODEMAILER_EMAIL`/`NODEMAILER_PASSWORD`) — without these,
   password-reset emails can't be sent and the sign-up welcome email is
   silently skipped. Both are logged, neither crashes the app.
-- **Inngest** (`INNGEST_SIGNING_KEY`) — needed once deployed for the
-  welcome-email job and the 5-minute price-alert check to run on a
-  schedule; for local development, run `npx inngest-cli@latest dev`
-  instead.
+- **Inngest** (`INNGEST_SIGNING_KEY`, `INNGEST_EVENT_KEY`) — needed once
+  deployed for the welcome-email job, the 5-minute price-alert check, and
+  candidate outcome tracking to run on a schedule (get both from the
+  Inngest Cloud dashboard for this app); for local development, run
+  `npx inngest-cli@latest dev` instead. Neither blocks core app use if
+  missing or wrong — every place this app sends an Inngest event
+  (`lib/actions/auth.actions.ts`'s welcome email) wraps the call in its own
+  try/catch, so sign-up and every other action still succeed; only that
+  specific background job silently doesn't run.
 - **AI** (`GEMINI_API_KEY` or another provider) — only used for the
   welcome email's personalized copy. Every actual analysis calculation
   (indicators, scoring, rules) is deterministic code, never AI — see
