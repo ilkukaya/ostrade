@@ -42,9 +42,11 @@ export const sendWelcomeEmail = async ({ email, name, intro }: WelcomeEmailData)
             return { status: 'skipped' } satisfies EmailSendResult;
         }
 
+        const dashboardUrl = process.env.BETTER_AUTH_URL || 'http://localhost:3000';
         const htmlTemplate = WELCOME_EMAIL_TEMPLATE
             .replace('{{name}}', name)
-            .replace('{{intro}}', intro);
+            .replace('{{intro}}', intro)
+            .replaceAll('{{dashboardUrl}}', dashboardUrl);
 
         const mailOptions = {
             from: `"Openstock" <${process.env.NODEMAILER_EMAIL}>`,

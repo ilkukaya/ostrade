@@ -3,6 +3,30 @@
 Target cost: **$0** across every service in this list (see `README.md`'s
 cost table). This walks through getting the private terminal live.
 
+## Production summary
+
+- **Netlify project name:** `ostrade` (create fresh — see step 3; none
+  exists yet under this account as of the last production-hardening pass).
+- **Production URL:** `https://ostrade.netlify.app` (or your custom domain,
+  once attached).
+- **Production branch:** `main` — the branch Netlify should build from,
+  and GitHub's own repository default branch (see step 3 and the
+  "GitHub default branch" note below).
+- **Minimum required environment variables** (Netlify → Site
+  configuration → Environment variables): `NODE_ENV=production`,
+  `MONGODB_URI`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `AUTHORIZED_EMAIL`.
+  Everything else in `.env.example` is optional — see step 4.
+- **GitHub default branch:** this repository's default branch cannot be
+  changed by an AI coding agent — there is no GitHub API/MCP tool for
+  repository-level settings, only branch/file/PR-level ones. On GitHub:
+  **Settings → General → Default branch → switch to `main`**. Do this
+  once `main` has this project's final state on it; nothing about the
+  Netlify deploy itself depends on GitHub's default branch setting (Netlify
+  builds whichever branch you configure in step 3, independent of
+  GitHub's own default), but it's still worth doing so PRs and clones
+  land on the current, production branch instead of the old feature
+  branch.
+
 ## 1. MongoDB Atlas (free tier)
 
 1. Create a free ("M0") cluster at [mongodb.com/atlas](https://www.mongodb.com/atlas).

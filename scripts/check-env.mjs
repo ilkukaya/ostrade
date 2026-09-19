@@ -27,6 +27,7 @@ const optionalVars = {
     'AUTHORIZED_EMAIL': 'Optional allowlisted owner email; when set, sign-up is restricted to this address',
     'GEMINI_API_KEY': 'Optional Google Gemini API key for AI-personalized welcome emails',
     'INNGEST_SIGNING_KEY': 'Optional Inngest signing key (needed once deployed, for webhook verification)',
+    'INNGEST_EVENT_KEY': 'Optional Inngest event key (needed once deployed, for sending events to Inngest Cloud)',
     'NODEMAILER_EMAIL': 'Optional Gmail address for sending emails',
     'NODEMAILER_PASSWORD': 'Optional Gmail app password (not your regular password)',
     'ADANOS_API_KEY': 'Optional Adanos API key for stock sentiment insights',
@@ -104,7 +105,7 @@ if (missing.length > 0) {
     console.log('\nTo fix:');
     console.log('1. Create a .env file in the project root');
     console.log('2. Add the missing variables');
-    console.log('3. For Vercel: Add these in Project Settings > Environment Variables');
+    console.log('3. For Netlify: Add these in Site configuration > Environment variables');
     process.exit(1);
 } else {
     console.log('\n✅ All required environment variables are set!');

@@ -63,16 +63,17 @@ Note: OpenStock is community-built and not a brokerage. Market data may be delay
 3. ⚙️ [Tech Stack](#tech-stack)
 4. 🔋 [Features](#features)
 5. 🤸 [Quick Start](#quick-start)
-6. 🐳 [Docker Setup](#docker-setup)
-7. 🔐 [Environment Variables](#environment-variables)
-8. 🧱 [Project Structure](#project-structure)
-9. 📡 [Data & Integrations](#data--integrations)
-10. 🌍 [Market Support](#market-support)
-11. 🧪 [Scripts & Tooling](#scripts--tooling)
-12. 🤝 [Contributing](#contributing)
-13. 🛡️ [Security](#security)
-14. 📜 [License](#license)
-15. 🙏 [Acknowledgements](#acknowledgements)
+6. 📅 [Daily & Weekly Workflow](#daily-weekly-workflow)
+7. 🐳 [Docker Setup](#docker-setup)
+8. 🔐 [Environment Variables](#environment-variables)
+9. 🧱 [Project Structure](#project-structure)
+10. 📡 [Data & Integrations](#data--integrations)
+11. 🌍 [Market Support](#market-support)
+12. 🧪 [Scripts & Tooling](#scripts--tooling)
+13. 🤝 [Contributing](#contributing)
+14. 🛡️ [Security](#security)
+15. 📜 [License](#license)
+16. 🙏 [Acknowledgements](#acknowledgements)
 
 ## ✨ Introduction <a name="introduction"></a>
 
@@ -123,7 +124,10 @@ Language composition
 
 - Authentication
     - Email/password auth with Better Auth + MongoDB adapter
-    - Protected routes enforced via Next.js middleware
+    - Protected routes enforced server-side — the `(root)` layout checks
+      the session on every page render, and every server action
+      independently re-verifies it (never relies on the page alone) — see
+      [`docs/auth-audit.md`](docs/auth-audit.md)
 - Global search and Command + K palette
     - Local search over every tracked universe (US + BIST), needing no API key, enriched with Finnhub's live search when configured
     - Popular stocks when idle; debounced querying
@@ -201,6 +205,37 @@ npm run build && npm start
 ```
 
 Open http://localhost:3000 to view the app.
+
+## 📅 Daily & Weekly Workflow <a name="daily-weekly-workflow"></a>
+
+OSTRADE has **no automatic market-data sync yet** — this is intentional
+for the first production deployment (see
+[`docs/daily-data-engine.md`](docs/daily-data-engine.md)'s "What's
+optional vs. automatic today"). The normal evening routine:
+
+1. **Log in.**
+2. Visit **`/data`** and click **Update BIST** and/or **Update US** —
+   pulls the day's new daily bars into the local database. First run ever
+   seeds full history (slower); every run after that is incremental.
+3. Click **Generate Daily Analysis** on the same page — computes that
+   session's swing scores for every tracked universe.
+4. Visit **`/review`** — new setups, newly-qualified candidates,
+   improved/deteriorated scores, and anything that lost qualification
+   since last time.
+5. Visit **`/scanner`** — full scan/filter/sort, save anything worth
+   tracking as a candidate.
+6. Check **`/candidates`** for anything already being tracked.
+
+**Friday / weekend**, in addition to the above: visit
+**`/review/weekly`** for the week's aggregate picture, and optionally
+review **`/backtest`** / **`/statistics`** if you're evaluating strategy
+performance rather than looking for new setups.
+
+Candidate outcome tracking (`checkCandidateOutcomes`, daily) and the
+5-minute price-alert check (`checkStockAlerts`) already run automatically
+via Inngest — only the market-data sync and daily-analysis generation are
+manual today. `/data` also shows freshness/staleness per market so it's
+obvious when a step was skipped.
 
 ## 🐳 Docker Setup <a name="docker-setup"></a>
 
