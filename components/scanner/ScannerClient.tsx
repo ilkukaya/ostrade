@@ -348,6 +348,7 @@ function ResultsTable({
                         <ResultRow
                             key={result.instrument.symbol}
                             result={result}
+                            currency={currency}
                             expanded={expandedSymbol === result.instrument.symbol}
                             onToggleExpand={() => onToggleExpand(result.instrument.symbol)}
                         />
@@ -358,7 +359,7 @@ function ResultsTable({
     );
 }
 
-function ResultRow({ result, expanded, onToggleExpand }: { result: ScannerResult; expanded: boolean; onToggleExpand: () => void }) {
+function ResultRow({ result, currency, expanded, onToggleExpand }: { result: ScannerResult; currency: string; expanded: boolean; onToggleExpand: () => void }) {
     const { analysis } = result;
     const counts = ruleCounts(analysis);
 
