@@ -112,7 +112,7 @@ describe('yahooProvider.getHistoricalPrices', () => {
     });
 
     it('appends .IS to the request URL for a known BIST symbol, never for a US symbol', async () => {
-        const fetchMock = vi.fn(async () => ({ ok: true, status: 200, json: async () => chartResponse(), text: async () => '' }));
+        const fetchMock = vi.fn(async (_input: string, _init?: RequestInit) => ({ ok: true, status: 200, json: async () => chartResponse(), text: async () => '' }));
         vi.stubGlobal('fetch', fetchMock);
 
         await yahooProvider.getHistoricalPrices('THYAO', 'D');
