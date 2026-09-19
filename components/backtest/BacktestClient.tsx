@@ -33,12 +33,12 @@ function r(value: number | null): string {
     return value === null ? '—' : `${value.toFixed(2)}R`;
 }
 
-const inputClass = 'h-9 rounded-md border border-gray-700 bg-black/30 px-2 text-sm text-gray-200';
+const inputClass = 'h-9 w-full min-w-0 rounded-md border border-gray-700 bg-black/30 px-2 text-sm text-gray-200';
 const selectClass = inputClass;
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
     return (
-        <label className="flex flex-col gap-1 text-xs text-gray-500">
+        <label className="flex min-w-0 flex-col gap-1 text-xs text-gray-500">
             {label}
             {children}
         </label>
@@ -108,9 +108,9 @@ export default function BacktestClient({ universes, pastRuns }: { universes: Uni
     const visibleTrades = useMemo(() => progress?.trades.slice(0, MAX_TRADE_ROWS_SHOWN) ?? [], [progress]);
 
     return (
-        <div className="space-y-6">
+        <div className="min-w-0 max-w-full space-y-6">
             <div className="flex flex-col gap-4 rounded-2xl border border-gray-800 bg-gray-950/40 p-5 backdrop-blur-sm">
-                <div className="flex flex-wrap items-end gap-4">
+                <div className="grid min-w-0 grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-9">
                     <Field label="Universe">
                         <select value={universeId} onChange={(e) => setUniverseId(e.target.value)} className={selectClass}>
                             {universes.map((u) => (
@@ -128,10 +128,10 @@ export default function BacktestClient({ universes, pastRuns }: { universes: Uni
                         <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={inputClass} />
                     </Field>
                     <Field label="Min score (extra filter)">
-                        <input type="number" min={0} max={100} value={minScore} onChange={(e) => setMinScore(e.target.valueAsNumber || 0)} className="h-9 w-20 rounded-md border border-gray-700 bg-black/30 px-2 text-sm text-gray-200" />
+                        <input type="number" min={0} max={100} value={minScore} onChange={(e) => setMinScore(e.target.valueAsNumber || 0)} className="h-9 w-full min-w-0 rounded-md border border-gray-700 bg-black/30 px-2 text-sm text-gray-200" />
                     </Field>
                     <Field label="Max holding days">
-                        <input type="number" min={1} value={maxHoldingDays} onChange={(e) => setMaxHoldingDays(e.target.valueAsNumber || 1)} className="h-9 w-24 rounded-md border border-gray-700 bg-black/30 px-2 text-sm text-gray-200" />
+                        <input type="number" min={1} value={maxHoldingDays} onChange={(e) => setMaxHoldingDays(e.target.valueAsNumber || 1)} className="h-9 w-full min-w-0 rounded-md border border-gray-700 bg-black/30 px-2 text-sm text-gray-200" />
                     </Field>
                     <Field label="Fee (bps)">
                         <input type="number" min={0} value={feeBps} onChange={(e) => setFeeBps(e.target.valueAsNumber || 0)} className="h-9 w-20 rounded-md border border-gray-700 bg-black/30 px-2 text-sm text-gray-200" />
@@ -286,7 +286,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 function GroupTable({ title, groups }: { title: string; groups: NonNullable<BacktestProgress['byYear']> }) {
     return (
-        <div className="overflow-x-auto rounded-xl border border-gray-800">
+        <div className="ostrade-scroll-x rounded-xl border border-gray-800">
             <table className="w-full min-w-[500px] text-left text-sm">
                 <thead className="bg-gray-900/60 text-xs uppercase tracking-wide text-gray-500">
                     <tr>
@@ -316,7 +316,7 @@ function GroupTable({ title, groups }: { title: string; groups: NonNullable<Back
 function TradesTable({ trades, totalCount }: { trades: BacktestProgress['trades']; totalCount: number }) {
     return (
         <div className="space-y-2">
-            <div className="overflow-x-auto rounded-xl border border-gray-800">
+            <div className="ostrade-scroll-x rounded-xl border border-gray-800">
                 <table className="w-full min-w-[900px] text-left text-sm">
                     <thead className="bg-gray-900/60 text-xs uppercase tracking-wide text-gray-500">
                         <tr>
@@ -360,7 +360,7 @@ function PastRunsTable({ runs, onLoad }: { runs: BacktestRunListItem[]; onLoad: 
     return (
         <div>
             <h2 className="mb-2 text-sm font-semibold text-gray-300">Past runs</h2>
-            <div className="overflow-x-auto rounded-xl border border-gray-800">
+            <div className="ostrade-scroll-x rounded-xl border border-gray-800">
                 <table className="w-full min-w-[700px] text-left text-sm">
                     <thead className="bg-gray-900/60 text-xs uppercase tracking-wide text-gray-500">
                         <tr>
