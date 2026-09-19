@@ -31,6 +31,15 @@ export interface StartSyncParams {
 export async function startMarketDataSync(params: StartSyncParams): Promise<{ runId: string }> {
     await connectToDatabase();
 
+    // Reuse an already-running sync for this (user, market) instead of
+    // starting a second one — a double-click on "Update US" must not
+    // launch two identical massive imports (see docs/daily-data-engine.md,
+    // "Data admin safety").
+    const alreadyRunning = await MarketDataSyncRun.findOne({ userId: params.userId, market: params.market, status: 'running' });
+    if (alreadyRunning) {
+        return { runId: String(alreadyRunning._id) };
+    }
+
     const instruments = resolveMarketSymbols(params.market);
     const now = new Date();
     const isTriviallyDone = instruments.length === 0;

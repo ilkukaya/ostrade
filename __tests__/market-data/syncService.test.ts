@@ -33,7 +33,9 @@ vi.mock('@/database/models/marketDataSyncRun.model', () => ({
             runStore.push(created);
             return created;
         }),
-        findOne: vi.fn(async (filter: { _id: string; userId: string }) => runStore.find((r) => r._id === filter._id && r.userId === filter.userId) ?? null),
+        findOne: vi.fn(async (filter: Partial<Record<keyof FakeRun, unknown>>) =>
+            runStore.find((r) => Object.entries(filter).every(([key, value]) => (r as unknown as Record<string, unknown>)[key] === value)) ?? null,
+        ),
         findByIdAndUpdate: vi.fn(
             async (
                 id: string,
@@ -132,6 +134,30 @@ describe('syncService', () => {
         const { runId } = await startMarketDataSync({ userId: 'user-1', market: 'US' });
         expect(runStore.find((r) => r._id === runId)?.symbols).toEqual(['AAA', 'BBB']);
         expect(runStore.find((r) => r._id === runId)?.status).toBe('running');
+    });
+
+    it('reuses an already-running sync for the same (user, market) rather than starting a duplicate', async () => {
+        const first = await startMarketDataSync({ userId: 'user-1', market: 'US' });
+        const second = await startMarketDataSync({ userId: 'user-1', market: 'US' });
+        expect(second.runId).toBe(first.runId);
+        expect(runStore.filter((r) => r.userId === 'user-1' && r.market === 'US')).toHaveLength(1);
+    });
+
+    it('does not reuse a run for a different market or a different user', async () => {
+        const usRun = await startMarketDataSync({ userId: 'user-1', market: 'US' });
+        const otherMarket = await startMarketDataSync({ userId: 'user-1', market: 'TR' });
+        const otherUser = await startMarketDataSync({ userId: 'user-2', market: 'US' });
+        expect(otherMarket.runId).not.toBe(usRun.runId);
+        expect(otherUser.runId).not.toBe(usRun.runId);
+    });
+
+    it('starts a fresh run once the previous one has completed', async () => {
+        mockGetHistoricalPricesWithProvider.mockResolvedValue(okResult(bars));
+        const first = await startMarketDataSync({ userId: 'user-1', market: 'US' });
+        await runMarketDataSyncBatch({ runId: first.runId, userId: 'user-1' }); // completes it (only 2 symbols, 1 batch)
+
+        const second = await startMarketDataSync({ userId: 'user-1', market: 'US' });
+        expect(second.runId).not.toBe(first.runId);
     });
 
     it('completes trivially for a market with no resolved symbols', async () => {

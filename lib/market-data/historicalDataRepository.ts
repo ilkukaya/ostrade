@@ -163,6 +163,35 @@ export async function getBarsOrFetch(
     return getBars(instrument, options);
 }
 
+export interface SymbolCoverage {
+    symbol: string;
+    latestDate: string | null;
+    barCount: number;
+}
+
+/** Bulk version of `getCoverage`, for the data-freshness dashboard — one
+ * aggregation query instead of N individual ones for an entire universe's
+ * worth of symbols. Symbols with no stored bars at all are still included,
+ * with `latestDate: null` / `barCount: 0`, so "never synced" is visible
+ * rather than silently absent from the result. */
+export async function getCoverageForSymbols(symbols: string[], market: string, timeframe: Timeframe = 'D'): Promise<SymbolCoverage[]> {
+    await connectToDatabase();
+    const upperSymbols = symbols.map((s) => s.toUpperCase());
+    if (upperSymbols.length === 0) return [];
+
+    const grouped: Array<{ _id: string; latestDate: string; barCount: number }> = await MarketBar.aggregate([
+        { $match: { symbol: { $in: upperSymbols }, market, timeframe } },
+        { $group: { _id: '$symbol', latestDate: { $max: '$date' }, barCount: { $sum: 1 } } },
+    ]);
+    const bySymbol = new Map(grouped.map((g) => [g._id, g]));
+
+    return upperSymbols.map((symbol) => ({
+        symbol,
+        latestDate: bySymbol.get(symbol)?.latestDate ?? null,
+        barCount: bySymbol.get(symbol)?.barCount ?? 0,
+    }));
+}
+
 export interface CoverageInfo {
     earliestDate: string | null;
     latestDate: string | null;

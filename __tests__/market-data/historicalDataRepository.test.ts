@@ -88,10 +88,37 @@ vi.mock('@/database/models/marketBar.model', () => ({
             }
             return { upsertedCount, modifiedCount };
         }),
+        aggregate: vi.fn(async (pipeline: Array<Record<string, unknown>>) => {
+            const matchStage = pipeline[0]?.$match as Record<string, unknown> | undefined;
+            const filtered = matchStage ? store.filter((d) => matchesAggregateFilter(d, matchStage)) : store;
+            const bySymbol = new Map<string, { latestDate: string; barCount: number }>();
+            for (const doc of filtered) {
+                const existing = bySymbol.get(doc.symbol);
+                if (!existing) {
+                    bySymbol.set(doc.symbol, { latestDate: doc.date, barCount: 1 });
+                } else {
+                    existing.barCount++;
+                    if (doc.date > existing.latestDate) existing.latestDate = doc.date;
+                }
+            }
+            return Array.from(bySymbol.entries()).map(([symbol, v]) => ({ _id: symbol, ...v }));
+        }),
     },
 }));
 
-import { getBars, getBarsOrFetch, getCoverage, getLatestBar, upsertBars } from '@/lib/market-data/historicalDataRepository';
+function matchesAggregateFilter(doc: FakeBarDoc, filter: Record<string, unknown>): boolean {
+    for (const [key, value] of Object.entries(filter)) {
+        if (value && typeof value === 'object' && '$in' in (value as object)) {
+            const list = (value as { $in: unknown[] }).$in;
+            if (!list.includes((doc as unknown as Record<string, unknown>)[key])) return false;
+            continue;
+        }
+        if ((doc as unknown as Record<string, unknown>)[key] !== value) return false;
+    }
+    return true;
+}
+
+import { getBars, getBarsOrFetch, getCoverage, getCoverageForSymbols, getLatestBar, upsertBars } from '@/lib/market-data/historicalDataRepository';
 
 function bar(time: string, close: number): HistoricalBar {
     return { time, open: close, high: close + 1, low: close - 1, close, volume: 1_000 };
@@ -226,6 +253,39 @@ describe('historicalDataRepository', () => {
             await upsertBars({ symbol: 'AAPL', market: 'US' }, [bar('2024-01-02', 100), bar('2024-01-03', 102), bar('2024-01-04', 104)], 'stooq');
             const coverage = await getCoverage({ symbol: 'AAPL', market: 'US' });
             expect(coverage).toEqual({ earliestDate: '2024-01-02', latestDate: '2024-01-04', barCount: 3 });
+        });
+    });
+
+    describe('getCoverageForSymbols', () => {
+        it('reports latestDate: null and barCount: 0 for a symbol with nothing stored, never omitting it', async () => {
+            await upsertBars({ symbol: 'AAPL', market: 'US' }, [bar('2024-01-02', 100)], 'stooq');
+            const coverage = await getCoverageForSymbols(['AAPL', 'ZZZZ'], 'US');
+            expect(coverage).toEqual(
+                expect.arrayContaining([
+                    { symbol: 'AAPL', latestDate: '2024-01-02', barCount: 1 },
+                    { symbol: 'ZZZZ', latestDate: null, barCount: 0 },
+                ]),
+            );
+            expect(coverage).toHaveLength(2);
+        });
+
+        it('computes the correct latest date and count across multiple bars per symbol', async () => {
+            await upsertBars({ symbol: 'AAPL', market: 'US' }, [bar('2024-01-02', 100), bar('2024-01-03', 102), bar('2024-01-04', 104)], 'stooq');
+            await upsertBars({ symbol: 'MSFT', market: 'US' }, [bar('2024-01-02', 300)], 'stooq');
+
+            const coverage = await getCoverageForSymbols(['AAPL', 'MSFT'], 'US');
+            expect(coverage.find((c) => c.symbol === 'AAPL')).toEqual({ symbol: 'AAPL', latestDate: '2024-01-04', barCount: 3 });
+            expect(coverage.find((c) => c.symbol === 'MSFT')).toEqual({ symbol: 'MSFT', latestDate: '2024-01-02', barCount: 1 });
+        });
+
+        it('never mixes bars from a different market for the same symbol string', async () => {
+            await upsertBars({ symbol: 'THYAO', market: 'TR' }, [bar('2024-01-02', 300)], 'yahoo');
+            const coverage = await getCoverageForSymbols(['THYAO'], 'US');
+            expect(coverage[0]).toEqual({ symbol: 'THYAO', latestDate: null, barCount: 0 });
+        });
+
+        it('returns an empty array for an empty symbol list', async () => {
+            expect(await getCoverageForSymbols([], 'US')).toEqual([]);
         });
     });
 });

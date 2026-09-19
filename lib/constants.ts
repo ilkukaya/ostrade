@@ -9,6 +9,7 @@ export const NAV_ITEMS = [
     { href: '/monte-carlo', label: 'Monte Carlo' },
     { href: '/portfolio', label: 'Portfolio' },
     { href: '/watchlist', label: 'Watchlist' },
+    { href: '/data', label: 'Market Data' },
     { href: '/api-docs', label: 'API Docs' },
 ];
 
