@@ -30,7 +30,7 @@ export const sendSignUpEmail = inngest.createFunction(
                 return await callAIProviderWithFallback(prompt);
             } catch (error) {
                 console.error("⚠️ All AI providers failed for welcome email", error);
-                return 'Thanks for joining Openstock. You now have the tools to track markets and make smarter moves.';
+                return 'Thanks for joining OSTRADE. You now have the tools to track markets and make smarter moves.';
             }
         });
 
