@@ -1,12 +1,27 @@
 'use server';
 
+import { headers } from 'next/headers';
+import { getAuth } from '@/lib/better-auth/auth';
 import { connectToDatabase } from '@/database/mongoose';
 import { Watchlist } from '@/database/models/watchlist.model';
 import { revalidatePath } from 'next/cache';
 
-// -- CRUD Operations --
+async function requireUserId(): Promise<string> {
+    const auth = await getAuth();
+    const session = await auth.api.getSession({ headers: await headers() });
+    if (!session?.user?.id) {
+        throw new Error('Not authenticated');
+    }
+    return session.user.id;
+}
 
-export async function addToWatchlist(userId: string, symbol: string, company: string) {
+// -- CRUD Operations --
+// `userId` is always derived from the session below, never trusted from the
+// caller — see docs/architecture.md's "server actions cannot be anonymously
+// invoked" requirement.
+
+export async function addToWatchlist(symbol: string, company: string) {
+    const userId = await requireUserId();
     try {
         await connectToDatabase();
 
@@ -30,7 +45,8 @@ export async function addToWatchlist(userId: string, symbol: string, company: st
     }
 }
 
-export async function removeFromWatchlist(userId: string, symbol: string) {
+export async function removeFromWatchlist(symbol: string) {
+    const userId = await requireUserId();
     try {
         await connectToDatabase();
         await Watchlist.findOneAndDelete({ userId, symbol: symbol.toUpperCase() });
@@ -43,7 +59,8 @@ export async function removeFromWatchlist(userId: string, symbol: string) {
     }
 }
 
-export async function getUserWatchlist(userId: string) {
+export async function getUserWatchlist() {
+    const userId = await requireUserId();
     try {
         await connectToDatabase();
         const watchlist = await Watchlist.find({ userId }).sort({ addedAt: -1 });
@@ -54,8 +71,9 @@ export async function getUserWatchlist(userId: string) {
     }
 }
 
-// Check if a symbol is in the user's watchlist
-export async function isStockInWatchlist(userId: string, symbol: string) {
+// Check if a symbol is in the signed-in owner's watchlist
+export async function isStockInWatchlist(symbol: string) {
+    const userId = await requireUserId();
     try {
         await connectToDatabase();
         const item = await Watchlist.findOne({ userId, symbol: symbol.toUpperCase() });

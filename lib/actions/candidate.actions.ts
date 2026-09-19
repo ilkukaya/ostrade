@@ -4,19 +4,9 @@ import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { getAuth } from '@/lib/better-auth/auth';
 import { connectToDatabase } from '@/database/mongoose';
-import { Candidate, buildCandidateSnapshot, type CandidateStatus } from '@/database/models/candidate.model';
-import { getBarsOrFetch } from '@/lib/market-data/historicalDataRepository';
-import { resolveInstrument } from '@/lib/market-data/instruments/resolve';
-import { analyzeSwingSetupDetailed } from '@/lib/swing/analyze';
+import { Candidate, type CandidateStatus } from '@/database/models/candidate.model';
+import { buildAndSaveCandidateSnapshot, type SaveCandidateOutcome } from '@/lib/candidates/buildAndSaveCandidateSnapshot';
 import type { SerializedCandidate } from '@/lib/candidates/types';
-
-/** Same window as the scanner/stock page (see lib/scanner/service.ts's
- * SCAN_BARS_LIMIT) — enough for every indicator the swing engine computes,
- * read locally-first rather than from a live provider, so a saved
- * candidate's snapshot is computed from the SAME stored bars the scanner
- * row that led to it was (see docs/daily-data-engine.md's "SAME DATA +
- * SAME STRATEGY = SAME RESULT"). */
-const SAVE_CANDIDATE_BARS_LIMIT = 300;
 
 async function requireUserId(): Promise<string> {
     const auth = await getAuth();
@@ -27,40 +17,8 @@ async function requireUserId(): Promise<string> {
     return session.user.id;
 }
 
-export type SaveCandidateOutcome = { success: true; candidateId: string } | { success: false; error: string };
-
-/**
- * The auth-free core of saveCandidate — split out so its local-first data
- * sourcing is directly unit-testable without needing to mock the Better
- * Auth session machinery (see __tests__/candidate.actions.test.ts). Always
- * re-runs the analysis fresh at the moment of saving (rather than trusting
- * a possibly-stale cached scanner result) — that fresh computation IS the
- * signal time being recorded. "Fresh" means read fresh from the local
- * market-data database (see docs/daily-data-engine.md's "local-first"
- * principle), not a live provider call bypassing it — the same stored bars
- * the scanner/stock page just displayed, not a second, potentially
- * different fetch. See database/models/candidate.model.ts for why nothing
- * about this document is ever recomputed afterwards.
- */
-export async function buildAndSaveCandidateSnapshot(userId: string, symbol: string): Promise<SaveCandidateOutcome> {
-    const instrument = resolveInstrument(symbol);
-    const bars = await getBarsOrFetch(instrument, { limit: SAVE_CANDIDATE_BARS_LIMIT });
-
-    const detailed = analyzeSwingSetupDetailed(instrument.symbol, bars);
-    if (!detailed) {
-        return { success: false, error: 'No historical data available for this symbol.' };
-    }
-
-    await connectToDatabase();
-    const doc = await Candidate.create(
-        buildCandidateSnapshot({ userId, analysis: detailed.result, snapshot: detailed.snapshot }),
-    );
-
-    return { success: true, candidateId: String(doc._id) };
-}
-
 /** Saves an immutable candidate snapshot for a symbol — see
- * buildAndSaveCandidateSnapshot above for the actual logic. */
+ * lib/candidates/buildAndSaveCandidateSnapshot.ts for the actual logic. */
 export async function saveCandidate(symbol: string): Promise<SaveCandidateOutcome> {
     const userId = await requireUserId();
     const result = await buildAndSaveCandidateSnapshot(userId, symbol);

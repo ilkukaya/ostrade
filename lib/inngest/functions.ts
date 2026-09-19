@@ -85,17 +85,20 @@ export const checkStockAlerts = inngest.createFunction(
         const typedAlerts = activeAlerts as unknown as AlertRecord[];
         const symbols = [...new Set(typedAlerts.map((a) => a.symbol))];
 
-        // Step 3: Fetch prices
+        // Step 3: Fetch prices — calls lib/market-data/service.ts directly
+        // rather than lib/actions/finnhub.actions.ts, since this cron runs
+        // with no user session at all and that file's exports now require
+        // one (see finnhub.actions.ts's own doc comment).
         const prices = await step.run('fetch-prices', async () => {
-            const { getQuote } = await import("@/lib/actions/finnhub.actions");
+            const { getQuote } = await import("@/lib/market-data/service");
             const priceMap: Record<string, number> = {};
 
             // Process in chunks to be safe
             for (const sym of symbols) {
                 try {
-                    const quote = await getQuote(sym as string);
-                    if (quote && quote.price) {
-                        priceMap[sym as string] = quote.price;
+                    const result = await getQuote(sym as string);
+                    if (result.ok && result.data.price) {
+                        priceMap[sym as string] = result.data.price;
                     }
                 } catch (e) {
                     console.error(`Failed to fetch price for ${sym}`, e);

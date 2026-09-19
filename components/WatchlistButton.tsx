@@ -46,10 +46,10 @@ const WatchlistButton = ({
         try {
             if (userId) {
                 if (next) {
-                    await addToWatchlist(userId, symbol, company);
+                    await addToWatchlist(symbol, company);
                     toast.success(`${symbol} added to watchlist`);
                 } else {
-                    await removeFromWatchlist(userId, symbol);
+                    await removeFromWatchlist(symbol);
                     toast.success(`${symbol} removed from watchlist`);
                 }
             }

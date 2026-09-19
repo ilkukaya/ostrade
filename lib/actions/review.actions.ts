@@ -71,10 +71,10 @@ export interface WatchlistChangeSummary {
  * has no shared snapshot to match — reported as `classification: null`
  * rather than silently omitted or guessed at. */
 export async function getWatchlistChangeSummary(): Promise<WatchlistChangeSummary[]> {
-    const userId = await requireUserId();
+    await requireUserId();
     await connectToDatabase();
 
-    const watchlist: Array<{ symbol: string }> = await getUserWatchlist(userId);
+    const watchlist: Array<{ symbol: string }> = await getUserWatchlist();
     if (watchlist.length === 0) return [];
 
     const bySymbolMarket = new Map<string, { symbol: string; market: string }>();

@@ -345,3 +345,12 @@ picture; this entry is the changelog-style summary.
   time. The 2 remaining findings (`nodemailer`, a `postcss` copy bundled
   in `next`) need a breaking major upgrade with no in-range fix and are
   assessed as low-reachability — see `docs/security-audit.md`.
+- ✅ Server Action authorization audit: found and fixed six previously
+  unprotected server actions (price alerts, watchlist, and — the finding
+  that prompted the whole audit — an auth-free candidate-snapshot/trade
+  helper independently invokable as its own Server Action despite only
+  ever being called by an already-auth-checked wrapper in the same file).
+  `deleteAlert`/`toggleAlert` also had a genuine cross-record IDOR
+  (any alert ID could be deleted/toggled, not just the caller's own) —
+  see `docs/auth-audit.md` for the full audit, what was fixed, and the
+  regression tests added.

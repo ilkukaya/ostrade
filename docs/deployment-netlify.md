@@ -118,6 +118,14 @@ breaking major upgrade with no in-range fix — assessed as low-reachability
 and documented rather than forced), and a note on an npm/Arborist internal
 bug encountered along the way and how it was worked around.
 
+## Server Action authorization
+
+See `docs/auth-audit.md` for a full audit of every server action behind
+`AUTHORIZED_EMAIL` — in particular, why a page-level redirect alone never
+protects a Server Action, and the handful of previously-unprotected
+actions (price alerts, watchlist, candidate-snapshot creation) this
+surfaced and fixed.
+
 ## Verifying the build locally before deploying
 
 ```bash

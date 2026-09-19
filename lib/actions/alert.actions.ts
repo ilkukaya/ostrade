@@ -1,20 +1,34 @@
 'use server';
 
+import { headers } from 'next/headers';
+import { getAuth } from '@/lib/better-auth/auth';
 import { connectToDatabase } from '@/database/mongoose';
 import { Alert } from '@/database/models/alert.model';
 import { revalidatePath } from 'next/cache';
 
-// Create a new alert
+async function requireUserId(): Promise<string> {
+    const auth = await getAuth();
+    const session = await auth.api.getSession({ headers: await headers() });
+    if (!session?.user?.id) {
+        throw new Error('Not authenticated');
+    }
+    return session.user.id;
+}
+
+// Create a new alert for the signed-in owner. `userId` is derived from the
+// session, never trusted from the caller — see docs/architecture.md's
+// "server actions cannot be anonymously invoked" requirement.
 export async function createAlert(params: {
-    userId: string;
     symbol: string;
     targetPrice: number;
     condition: 'ABOVE' | 'BELOW';
 }) {
+    const userId = await requireUserId();
     try {
         await connectToDatabase();
         const newAlert = await Alert.create({
             ...params,
+            userId,
             active: true,
             // expiresAt handled by default value in schema
         });
@@ -26,8 +40,9 @@ export async function createAlert(params: {
     }
 }
 
-// Get all alerts for a user
-export async function getUserAlerts(userId: string) {
+// Get all alerts for the signed-in owner.
+export async function getUserAlerts() {
+    const userId = await requireUserId();
     try {
         await connectToDatabase();
         const alerts = await Alert.find({ userId }).sort({ createdAt: -1 });
@@ -38,11 +53,13 @@ export async function getUserAlerts(userId: string) {
     }
 }
 
-// Delete an alert
+// Delete an alert — scoped to the signed-in owner's own alerts, so an alert
+// ID alone is never enough to touch another user's record.
 export async function deleteAlert(alertId: string) {
+    const userId = await requireUserId();
     try {
         await connectToDatabase();
-        await Alert.findByIdAndDelete(alertId);
+        await Alert.findOneAndDelete({ _id: alertId, userId });
         revalidatePath('/watchlist');
         return { success: true };
     } catch (error) {
@@ -51,11 +68,12 @@ export async function deleteAlert(alertId: string) {
     }
 }
 
-// Toggle alert active status (optional utility)
+// Toggle alert active status (optional utility) — same ownership scoping as deleteAlert.
 export async function toggleAlert(alertId: string, active: boolean) {
+    const userId = await requireUserId();
     try {
         await connectToDatabase();
-        await Alert.findByIdAndUpdate(alertId, { active });
+        await Alert.findOneAndUpdate({ _id: alertId, userId }, { active });
         revalidatePath('/watchlist');
         return { success: true };
     } catch (error) {

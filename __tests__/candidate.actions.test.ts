@@ -23,7 +23,7 @@ vi.mock('@/lib/market-data/historicalDataRepository', () => ({
     getBarsOrFetch: (...args: [{ symbol: string }, unknown?]) => mockGetBarsOrFetch(...args),
 }));
 
-import { buildAndSaveCandidateSnapshot } from '@/lib/actions/candidate.actions';
+import { buildAndSaveCandidateSnapshot } from '@/lib/candidates/buildAndSaveCandidateSnapshot';
 
 function makeBars(count: number, trendPerBar: number): OhlcBar[] {
     const bars: OhlcBar[] = [];

@@ -21,12 +21,10 @@ export default async function WatchlistPage() {
         redirect('/sign-in');
     }
 
-    const userId = session.user.id;
-
     // Parallel data fetching
     const [watchlistItems, alerts, news] = await Promise.all([
-        getUserWatchlist(userId),
-        getUserAlerts(userId),
+        getUserWatchlist(),
+        getUserAlerts(),
         getNews() // Initial news fetch
     ]);
 
@@ -54,7 +52,7 @@ export default async function WatchlistPage() {
                 {/* Main Content - Watchlist Table */}
                 <div className="lg:col-span-3 space-y-8">
                     <div className="space-y-6">
-                        <WatchlistManager initialItems={watchlistItems} userId={userId} />
+                        <WatchlistManager initialItems={watchlistItems} />
                     </div>
 
                     {/* News Section */}

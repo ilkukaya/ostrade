@@ -12,7 +12,7 @@ vi.mock('@/lib/market-data/historicalDataRepository', () => ({
     getBarsOrFetch: (...args: [{ symbol: string }, { from?: string; to?: string }?]) => mockGetBarsOrFetch(...args),
 }));
 
-import { fetchBarsSinceEntry } from '@/lib/actions/trade.actions';
+import { fetchBarsSinceEntry } from '@/lib/trades/fetchBarsSinceEntry';
 
 function bar(time: string): HistoricalBar {
     return { time, open: 100, high: 101, low: 99, close: 100, volume: 1000 };

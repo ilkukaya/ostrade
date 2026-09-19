@@ -1,4 +1,13 @@
-'use server';
+// Deliberately NOT 'use server' — every exported function in a 'use server'
+// file becomes its own publicly, anonymously invokable HTTP endpoint
+// (confirmed against .next/server/server-reference-manifest.json), even one
+// only ever called from a Server Component. getStockSentimentInsights is
+// only called from app/(root)/stocks/[symbol]/page.tsx, itself gated by the
+// (root) layout's session check — a plain server-only module keeps it that
+// way, and avoids spending the (optional, cost-bearing) Adanos API key on
+// anonymous requests. Do not add 'use server' back without also adding a
+// requireUserId() check (see lib/actions/candidate.actions.ts's
+// requireUserId for the pattern).
 
 import {
     buildStockSentimentInsights,
