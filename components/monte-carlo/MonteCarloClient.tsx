@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Dices, Loader2 } from 'lucide-react';
 import { runMonteCarloFromBacktest, runMonteCarloFromJournal, type MonteCarloParams } from '@/lib/actions/montecarlo.actions';
+import { getBacktestRuns } from '@/lib/actions/backtest.actions';
 import type { MonteCarloResult, PercentileSet } from '@/lib/monte-carlo/types';
 import type { BacktestRunListItem } from '@/lib/backtest/types';
 
@@ -22,9 +23,11 @@ function pct(value: number): string {
 }
 
 export default function MonteCarloClient({ backtestRuns }: { backtestRuns: BacktestRunListItem[] }) {
-    const completedRuns = backtestRuns.filter((r) => r.status === 'completed');
+    const [runs, setRuns] = useState(backtestRuns);
+    const completedRuns = useMemo(() => runs.filter((r) => r.status === 'completed'), [runs]);
     const [source, setSource] = useState<'backtest' | 'journal'>(completedRuns.length > 0 ? 'backtest' : 'journal');
     const [runId, setRunId] = useState(completedRuns[0]?.runId ?? '');
+    const [refreshingRuns, setRefreshingRuns] = useState(false);
 
     const [numSimulations, setNumSimulations] = useState(2000);
     const [numTradesPerSimulation, setNumTradesPerSimulation] = useState(100);
@@ -37,6 +40,28 @@ export default function MonteCarloClient({ backtestRuns }: { backtestRuns: Backt
     const [sampleSize, setSampleSize] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isRunning, setIsRunning] = useState(false);
+
+    const refreshRuns = async () => {
+        setRefreshingRuns(true);
+        try {
+            const latest = await getBacktestRuns();
+            setRuns(latest);
+            const completed = latest.filter((r) => r.status === 'completed');
+            if (completed.length > 0) {
+                setSource('backtest');
+                setRunId((current) => completed.some((r) => r.runId === current) ? current : completed[0].runId);
+            }
+        } finally {
+            setRefreshingRuns(false);
+        }
+    };
+
+    useEffect(() => {
+        void refreshRuns();
+        // Refresh once on mount so a Next.js-prefetched route cannot leave
+        // Monte Carlo with a stale "no completed runs" snapshot.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleRun = async () => {
         setError(null);
@@ -82,6 +107,15 @@ export default function MonteCarloClient({ backtestRuns }: { backtestRuns: Backt
                             </select>
                         </Field>
                     ) : null}
+                    <button
+                        type="button"
+                        onClick={refreshRuns}
+                        disabled={refreshingRuns}
+                        className="flex h-9 items-center gap-2 rounded-md border border-gray-700 bg-black/30 px-3 text-sm font-medium text-gray-200 hover:bg-black/50 disabled:opacity-50"
+                    >
+                        {refreshingRuns ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                        Refresh runs
+                    </button>
                     <Field label="Simulations">
                         <input type="number" min={1} value={numSimulations} onChange={(e) => setNumSimulations(e.target.valueAsNumber || 1)} className="h-9 w-24 rounded-md border border-gray-700 bg-black/30 px-2 text-sm text-gray-200" />
                     </Field>
