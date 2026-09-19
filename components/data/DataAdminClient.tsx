@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { ChevronDown, ChevronRight, Loader2, RefreshCw, Sparkles } from 'lucide-react';
-import { advanceSync, getFreshness, startSync } from '@/lib/actions/marketDataSync.actions';
+import { advanceSync, getFreshness, rebuildBistDailyData, startSync } from '@/lib/actions/marketDataSync.actions';
 import { runDailySnapshotGeneration } from '@/lib/actions/dailySnapshot.actions';
 import type { MarketDataSyncProgress } from '@/lib/market-data/sync/syncService';
 import type { MarketFreshness } from '@/lib/market-data/sync/freshness';
@@ -71,6 +71,7 @@ export default function DataAdminClient({
     const [expandedMarket, setExpandedMarket] = useState<string | null>(null);
     const [snapshotResults, setSnapshotResults] = useState<Partial<Record<string, GenerateDailySnapshotsResult>>>({});
     const [snapshotLoading, setSnapshotLoading] = useState<Partial<Record<string, boolean>>>({});
+    const [rebuildMessage, setRebuildMessage] = useState<string | null>(null);
     const activeRequestIds = useRef<Record<string, number>>({ US: 0, TR: 0 });
 
     const pollMarket = useCallback(async (market: string, forceRefresh: boolean) => {
@@ -101,6 +102,42 @@ export default function DataAdminClient({
     const handleUpdate = (market: string) => pollMarket(market, false);
     const handleUpdateAll = () => {
         for (const m of MARKETS) pollMarket(m.id, false);
+    };
+
+    const handleRebuildBist = async () => {
+        if (!window.confirm('Rebuild BIST daily data? This removes the current BIST bars and research artifacts created from them, then re-imports true daily bars. Journal trades are not touched.')) {
+            return;
+        }
+
+        const market = 'TR';
+        const requestId = ++activeRequestIds.current[market];
+        setRebuildMessage('Preparing BIST rebuild…');
+        try {
+            const { runId, deleted } = await rebuildBistDailyData();
+            setRebuildMessage(
+                `Cleared ${deleted.bars} bars, ${deleted.snapshots} snapshots, ${deleted.candidates} candidates, ${deleted.backtests} backtests and ${deleted.scannerRuns} scanner runs. Re-importing daily bars…`,
+            );
+
+            let current = await advanceSync(runId);
+            if (activeRequestIds.current[market] !== requestId) return;
+            setProgress((p) => ({ ...p, [market]: current }));
+
+            while (current.status === 'running' && activeRequestIds.current[market] === requestId) {
+                await new Promise((resolve) => setTimeout(resolve, POLL_DELAY_MS));
+                if (activeRequestIds.current[market] !== requestId) return;
+                current = await advanceSync(runId);
+                if (activeRequestIds.current[market] !== requestId) return;
+                setProgress((p) => ({ ...p, [market]: current }));
+            }
+
+            const updated = await getFreshness(market);
+            setFreshness((f) => ({ ...f, [market]: updated }));
+            setSnapshotResults((r) => ({ ...r, TR: undefined }));
+            setRebuildMessage(current.status === 'completed' ? 'BIST rebuild completed. Generate Daily Analysis again before using Review/Scanner.' : 'BIST rebuild stopped before completion.');
+        } catch (error) {
+            console.error('BIST rebuild failed', error);
+            setRebuildMessage(error instanceof Error ? error.message : 'BIST rebuild failed.');
+        }
     };
 
     const handleGenerateSnapshot = async (market: string) => {
@@ -139,7 +176,17 @@ export default function DataAdminClient({
                     <RefreshCw className="h-4 w-4" />
                     Update All
                 </button>
+                <button
+                    type="button"
+                    onClick={handleRebuildBist}
+                    disabled={progress.TR?.status === 'running'}
+                    className="flex h-9 items-center gap-2 rounded-md border border-amber-700 bg-amber-500/10 px-3 text-sm font-medium text-amber-300 hover:bg-amber-500/20 disabled:opacity-50"
+                >
+                    <RefreshCw className={`h-4 w-4 ${progress.TR?.status === 'running' ? 'animate-spin' : ''}`} />
+                    Rebuild BIST Daily Data
+                </button>
             </div>
+            {rebuildMessage ? <p className="text-xs text-amber-300/80">{rebuildMessage}</p> : null}
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {MARKETS.map((m) => (
