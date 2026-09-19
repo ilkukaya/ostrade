@@ -10,7 +10,7 @@ function num(value: number | null, digits = 2): string {
 
 export default function CandidateStatsSection({ overall, buckets }: { overall: OverallCandidateStats; buckets: BucketStats[] }) {
     return (
-        <section className="space-y-4">
+        <section className="min-w-0 max-w-full space-y-4">
             <div>
                 <h2 className="text-lg font-semibold text-white">Candidate Statistics</h2>
                 <p className="mt-1 text-xs text-gray-500">
@@ -34,7 +34,7 @@ export default function CandidateStatsSection({ overall, buckets }: { overall: O
                 </div>
             </div>
 
-            <div className="overflow-x-auto rounded-xl border border-gray-800">
+            <div className="ostrade-scroll-x rounded-xl border border-gray-800">
                 <table className="w-full min-w-[900px] text-left text-sm">
                     <thead className="bg-gray-900/60 text-xs uppercase tracking-wide text-gray-500">
                         <tr>
