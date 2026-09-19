@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import { connectToDatabase } from '@/database/mongoose';
 import { ScannerRun, type ScannerRunDocument, type ScannerResultDoc, type ScannerSkippedSymbol } from '@/database/models/scannerRun.model';
 import { Watchlist } from '@/database/models/watchlist.model';
@@ -7,6 +6,7 @@ import { getCompanyProfile, getHistoricalPrices } from '@/lib/market-data/servic
 import { describeMarketDataError } from '@/lib/market-data/types';
 import { analyzeSwingSetupDetailed } from '@/lib/swing/analyze';
 import { defaultSwingStrategyConfig, type SwingStrategyConfig } from '@/lib/swing/config';
+import { fingerprintStrategyConfig } from '@/lib/swing/configFingerprint';
 import { createConcurrencyLimiter } from '@/lib/concurrencyLimiter';
 import type { ScannerProgress, ScannerResult } from './types';
 
@@ -26,10 +26,6 @@ const CONCURRENCY = 4;
  * trading day, so there is little value in rescanning more often than this
  * by default. */
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
-
-function fingerprintConfig(config: SwingStrategyConfig): string {
-    return crypto.createHash('sha256').update(JSON.stringify(config)).digest('hex').slice(0, 16);
-}
 
 async function resolveUniverseSymbols(universeId: string, userId: string): Promise<string[]> {
     if (universeId === CUSTOM_WATCHLIST_UNIVERSE_ID) {
@@ -122,7 +118,7 @@ export interface RunScannerBatchParams {
  */
 export async function runScannerBatch(params: RunScannerBatchParams): Promise<ScannerProgress> {
     const config = params.config ?? defaultSwingStrategyConfig;
-    const fingerprint = fingerprintConfig(config);
+    const fingerprint = fingerprintStrategyConfig(config);
 
     await connectToDatabase();
 

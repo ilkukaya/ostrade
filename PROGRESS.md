@@ -155,14 +155,39 @@ Status legend: ✅ done · 🟡 partial · ⬜ not started
 - ⬜ Market-regime breakdowns — deferred until backtesting defines what a
   "regime" means, rather than inventing a second definition here first
 
-## Milestone 8 — Backtesting (Phase 12) — ⬜ Not implemented yet
+## Milestone 8 — Backtesting (Phase 12)
 
-The rule engine (Milestone 4) is deliberately deterministic and side-effect
-free specifically so it can be replayed bar-by-bar later without
-look-ahead bias — that's the main technical prerequisite, and it's done.
-Still needed: a chronological walk-forward runner, an entry/exit/stop
-simulator against historical bars, and strategy versioning so a later
-config change doesn't silently rewrite what a historical backtest meant.
+- ✅ `/backtest` — chronological, no-look-ahead walk-forward simulation
+  (`lib/backtest/simulate.ts`) reusing `analyzeSwingSetupDetailed` (signal
+  generation), `evaluateCandidateOutcome` (exit resolution — the *same*
+  function the live outcome-tracking cron uses) and `calculateExcursion`
+  (MFE/MAE) rather than a parallel implementation of any of them
+- ✅ Two real correctness bugs this reuse surfaced were caught by
+  `simulate.test.ts` before shipping (a missing-`closedAt` fallback for a
+  plain TARGET_1_HIT, and an unbounded `maxHoldingDays` window that would
+  have misreported EXPIRED's date) — see `docs/backtesting.md`
+- ✅ Configurable fees/slippage (basis points; slippage on entry + stop
+  fills only, fees as a flat round-trip R drag), configurable min score /
+  max holding days / date range
+- ✅ Strategy versioning: every `BacktestRun` permanently stores the full
+  `SwingStrategyConfig` snapshot + fingerprint used, distinct from the
+  ephemeral, TTL-expired `ScannerRun` cache — no fingerprint-based reuse,
+  every run is a separate, listable research record
+- ✅ Rate-limit protection: reuses the scanner's exact batching/concurrency
+  architecture (one market-data call per symbol regardless of the date
+  range simulated, since full history is fetched once and walked in
+  memory) — `BATCH_SIZE=5`/`CONCURRENCY=3`, smaller than the scanner's
+  10/4 since each unit of work is a full multi-year simulation
+- ✅ Outputs: summary (win rate, expectancy, profit factor, max drawdown —
+  documented as a sequential-R simplification, not a concurrent-portfolio
+  simulation), broken down by year / setup / score bucket (reusing the
+  same `DEFAULT_SCORE_BUCKETS` as candidate statistics)
+- ✅ Holdout/validation: optional `holdoutStartDate` splits a run into
+  train vs. holdout summaries side by side, to check for curve-fitting
+  rather than trusting a full-history number alone
+- See `docs/backtesting.md` for the full list of documented simplifications
+  (long-only, daily timeframe, one open position per symbol at a time, no
+  market-regime breakdown yet)
 
 ## Milestone 9 — Monte Carlo (Phase 13) — ⬜ Not implemented yet
 
