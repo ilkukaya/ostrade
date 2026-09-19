@@ -233,10 +233,15 @@ Status legend: ✅ done · 🟡 partial · ⬜ not started
 - ✅ Data-freshness timestamp added to the Swing Analysis panel (the
   primary trading-decision surface) — the Scanner, Candidates, Journal,
   and Backtest pages already showed their own relevant dates
-- ⬜ The donate popup and Siray partner banner (see "Known gaps" below)
-  remain — left alone deliberately, since removing them cleanly requires
-  untangling `components/NavItems.tsx`'s `DonatePopupContext` wiring, a
-  higher-risk change than this milestone's scope justified
+- ✅ The donate popup and Siray partner banner were removed during the
+  production-hardening pass (see below) — `components/DonatePopup.tsx`
+  and `components/SirayBanner.tsx` deleted, `NavItems.tsx`'s
+  `DonatePopupContext` wiring and Donate button removed, `layout.tsx`
+  no longer renders either. The unrelated, functional Siray.ai AI-provider
+  fallback (`lib/ai-provider.ts`, used for the welcome email) is untouched
+  — only the cosmetic partner-branding banner and its README "Partners &
+  Backers" section were cruft; the AGPL/OpenStock attribution in
+  README/LICENSE was left exactly as-is.
 
 ## Milestone 11 — Daily EOD Market Data Engine + BIST Support (Phase B)
 
@@ -325,15 +330,10 @@ picture; this entry is the changelog-style summary.
   `STOCK_ALERT_UPPER_EMAIL_TEMPLATE` / `STOCK_ALERT_LOWER_EMAIL_TEMPLATE`
   ready to use, the send call was just never wired back up after the
   Kit/ConvertKit removal.
-- Cosmetic-only cleanup not fully addressed (low priority, explicitly
-  deprioritized versus functional work per the deployment brief): the
-  Peerlist upvote badge was removed as part of Milestone 10's dashboard
-  update, but the donate popup and Siray partner banner are still present
-  from upstream — removing them cleanly requires untangling
-  `components/NavItems.tsx`'s `DonatePopupContext` wiring (the "Donate"
-  nav button), which was judged a higher-risk change than this milestone's
-  scope justified. None of this is functionally wrong, just not
-  private-terminal-appropriate branding.
+- ✅ Cosmetic-only cleanup: the Peerlist upvote badge was removed as part
+  of Milestone 10's dashboard update; the donate popup and Siray partner
+  banner were removed during the production-hardening pass (see
+  Milestone 11 above) once the `DonatePopupContext` wiring was untangled.
 - A handful of `<img>` → `next/image` and React-hooks-exhaustive-deps
   ESLint *warnings* remain (not errors — they don't block the build).
   Tracked, not urgent.
