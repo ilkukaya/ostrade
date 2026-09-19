@@ -10,6 +10,7 @@ import type { SetupType } from '@/lib/swing/types';
 import type { TrendDirection } from '@/lib/technical/trend';
 import { formatChangePercent, formatPrice, getChangeColorClass } from '@/lib/utils';
 import { RuleRow, statusClasses, statusLabel } from '@/components/swing/shared';
+import SaveCandidateButton from '@/components/swing/SaveCandidateButton';
 
 interface UniverseOption {
     id: string;
@@ -393,10 +394,13 @@ function ResultRow({ result, expanded, onToggleExpand }: { result: ScannerResult
             {expanded ? (
                 <tr>
                     <td colSpan={13} className="bg-black/30 px-6 py-4">
-                        <p className="mb-3 text-xs text-gray-500">
-                            {counts.passed}/{analysis.rules.length} rules passed — full breakdown reused from the same rule engine as the stock
-                            detail page.
-                        </p>
+                        <div className="mb-3 flex items-center justify-between gap-4">
+                            <p className="text-xs text-gray-500">
+                                {counts.passed}/{analysis.rules.length} rules passed — full breakdown reused from the same rule engine as the
+                                stock detail page.
+                            </p>
+                            <SaveCandidateButton symbol={result.instrument.symbol} />
+                        </div>
                         <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                             {analysis.rules.map((rule) => (
                                 <RuleRow key={rule.id} rule={rule} />

@@ -67,34 +67,48 @@ Status legend: ✅ done · 🟡 partial · ⬜ not started
   owner yet (they're just the `defaultSwingStrategyConfig` object) — no UI
   or database-backed strategy versioning yet
 
-## Milestone 5 — Scanner (Phase 8) — ⬜ Not implemented yet
+## Milestone 5 — Scanner (Phase 8)
 
-Needed:
-- A named symbol universe concept (`lib/market-data` already has the
-  `InstrumentId` shape to build on; nothing stores a "S&P 500" or "Custom
-  Watchlist" list yet)
-- Batch analysis: run `analyzeSwingSetup` across a universe, respecting
-  Finnhub's free-tier rate limits (`lib/market-data/service.ts` already has
-  `getQuotesForSymbols` for batched quotes — historical-bar batching for a
-  full universe scan does not exist yet and needs caching/scheduling before
-  it's safe to run on demand)
-- Scanner results table + filters (score, setup, R/R, relative volume,
-  price range) — no UI yet
-- Caching layer so a scan doesn't refetch history for every symbol on every
-  page load
+- ✅ `MarketUniverse` abstraction: Dow 30 (complete), Nasdaq-100 and S&P 500
+  (explicitly-labeled partial static snapshots), plus a dynamic Custom
+  Watchlist universe (`lib/market-data/universe.ts`)
+- ✅ Batch analysis reusing `analyzeSwingSetupDetailed` — no duplicated
+  indicator/rule logic (`lib/scanner/service.ts`)
+- ✅ Rate-limit protection: concurrency-limited batches (10 symbols/call, 4
+  concurrent — `lib/concurrencyLimiter.ts`) so a scan never fires an
+  unbounded request burst and stays within serverless execution limits
+  regardless of universe size
+- ✅ MongoDB-backed scan caching (`ScannerRun`, TTL-indexed, 6h default) —
+  a repeat scan of the same universe is served instantly with zero
+  market-data calls until `forceRefresh` or expiry
+- ✅ `/scanner` page: universe picker, client-side filters (score, setup,
+  R/R, relative volume, RSI range, trend), sorting, live "scanning N/total"
+  + qualified-count progress, per-row rule-by-rule explainability (shared
+  renderer with the stock detail page, not a duplicate), links into the
+  existing stock detail page
+- ✅ "Save Candidate" from a scanner row (see Milestone 6)
+- See `docs/scanner.md`
 
-## Milestone 6 — Candidate tracking / Journal (Phase 9–10) — ⬜ Not implemented yet
+## Milestone 6 — Candidate tracking (Phase 9)
 
-Needed:
-- Database models: `Candidate`, `Trade`, `AnalysisSnapshot`,
-  `StrategyVersion` (none of these exist yet — only `Watchlist` and `Alert`
-  do)
-- A "Save to Swing Candidates" action from the stock page
-  (`SwingAnalysisResult` already has everything needed to snapshot: score,
-  rules, trade plan, timestamp)
-- Manual trade entry UI + outcome tracking (target/stop hit, R multiple)
-- Look-ahead-bias-safe outcome evaluation (compare a saved snapshot against
-  later price action, never recompute indicators using future data)
+- ✅ `Candidate` model (`database/models/candidate.model.ts`): immutable
+  analysis snapshot (score, rules, trade plan, indicator readings at
+  signal time — explicitly excluding the raw bar history, which doesn't
+  need to live on every candidate) + a mutable lifecycle
+  (`ACTIVE`/`TARGET_1_HIT`/`TARGET_2_HIT`/`STOP_HIT`/`EXPIRED`/
+  `CANCELLED`/`AMBIGUOUS`)
+- ✅ `saveCandidate` re-runs the analysis fresh at save time (from the
+  Scanner or the stock detail page) and persists it — see
+  `docs/candidates.md` for why nothing about a saved candidate is ever
+  recomputed afterwards
+- ✅ `/candidates` page: filters (status, setup, score, symbol, date
+  range), and a clear "Signal Snapshot" (frozen) vs. "View Current
+  Analysis" (live, links to the stock page) distinction per row
+- ✅ Manual cancel action for active candidates
+- ⬜ **Automatic outcome tracking** (detecting target/stop hits from bars
+  since the signal) — not built yet; every candidate stays `ACTIVE` until
+  either this exists or it's manually cancelled
+- ⬜ Trade Journal — a separate, still-unbuilt concept; see `docs/journal.md`
 
 ## Milestone 7 — Statistics (Phase 11) — ⬜ Not implemented yet
 

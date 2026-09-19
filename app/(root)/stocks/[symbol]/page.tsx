@@ -73,7 +73,7 @@ export default async function StockDetails({ params }: StockDetailsPageProps) {
                         />
                     </div>
 
-                    <SwingAnalysisPanel outcome={swingAnalysis} />
+                    <SwingAnalysisPanel symbol={symbol.toUpperCase()} outcome={swingAnalysis} />
 
                     <StockSentimentCard insight={sentimentInsights} />
 

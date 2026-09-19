@@ -2,8 +2,9 @@ import { TriangleAlert } from 'lucide-react';
 import type { SwingAnalysisOutcome } from '@/lib/actions/swing.actions';
 import { formatPrice } from '@/lib/utils';
 import { RuleRow, formatZone, statusClasses, statusLabel } from '@/components/swing/shared';
+import SaveCandidateButton from '@/components/swing/SaveCandidateButton';
 
-export default function SwingAnalysisPanel({ outcome }: { outcome: SwingAnalysisOutcome }) {
+export default function SwingAnalysisPanel({ symbol, outcome }: { symbol: string; outcome: SwingAnalysisOutcome }) {
     if (outcome.status === 'unavailable') {
         return (
             <section className="rounded-2xl border border-gray-800 bg-gray-950/40 p-5 backdrop-blur-sm">
@@ -44,6 +45,7 @@ export default function SwingAnalysisPanel({ outcome }: { outcome: SwingAnalysis
                     <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusClasses(analysis.status)}`}>
                         {statusLabel(analysis.status)}
                     </span>
+                    <SaveCandidateButton symbol={symbol} />
                 </div>
             </div>
 
