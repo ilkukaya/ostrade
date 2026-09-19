@@ -257,7 +257,7 @@ async function getQuote(symbol: string): Promise<MarketDataResult<Quote>> {
 
 async function getCompanyProfile(symbol: string): Promise<MarketDataResult<CompanyProfile>> {
     try {
-        const result = await fetchYahooChart(toProviderSymbol(symbol), '5d');
+        const result = await fetchYahooChart(toProviderSymbol(symbol), { range: '5d' });
         const meta = result.meta ?? {};
         return ok({
             symbol: symbol.toUpperCase(),
