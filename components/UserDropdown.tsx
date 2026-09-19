@@ -7,67 +7,70 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {useRouter} from "next/navigation";
-import {Button} from "@/components/ui/button";
-import {LogOut} from "lucide-react";
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { LogOut } from "lucide-react";
 import NavItems from "@/components/NavItems";
-import {signOut} from "@/lib/actions/auth.actions";
+import ThemeToggle from "@/components/ThemeToggle";
+import { signOut } from "@/lib/actions/auth.actions";
 
-const UserDropdown = ({ user, initialStocks }: {user: User, initialStocks: StockWithWatchlistStatus[]}) => {
+const UserDropdown = ({ user, initialStocks }: { user: User; initialStocks: StockWithWatchlistStatus[] }) => {
     const router = useRouter();
 
     const handleSignOut = async () => {
         await signOut();
         router.push("/sign-in");
-    }
+    };
+
+    const initial = user.name?.trim()?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || "O";
 
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button className="flex items-center gap-3 text-gray-4 hover:bg-gray-800 bg-gray-800">
+                <Button variant="ghost" className="flex items-center gap-3 rounded-xl border border-transparent bg-transparent px-2 text-foreground hover:border-border hover:bg-muted">
                     <Avatar className="h-8 w-8">
-                        <AvatarImage src="https://media.licdn.com/dms/image/v2/D560BAQGHApE1Vtq6DA/company-logo_200_200/B56ZY1OFJOGcAI-/0/1744649609317/philosopai_in_logo?e=1761782400&v=beta&t=uLNK6v7h96sXybdT42cVK0cJSZaA8KVLw8JYO5fY4oQ" />
-                        <AvatarFallback className="bg-teal-500 text-teal-900 text-sm font-bold">
-                            {user.name[0]}
+                        <AvatarFallback className="bg-teal-500/15 text-sm font-bold text-teal-700 dark:text-teal-300">
+                            {initial}
                         </AvatarFallback>
                     </Avatar>
-                    <div className="hidden md:flex flex-col items-start ">
-                        <span className='text-base font-medium text-gray-400 hover:text-teal-500 '>
-                            {user.name}
-                        </span>
+                    <div className="hidden md:flex flex-col items-start">
+                        <span className="text-sm font-semibold text-foreground">{user.name}</span>
                     </div>
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="text-gray-400 bg-gray-800 relative right-5">
+            <DropdownMenuContent className="relative right-5 min-w-64 border-border bg-popover text-popover-foreground">
                 <DropdownMenuLabel>
-                    <div className="flex relative items-center gap-3 py-2">
+                    <div className="flex items-center gap-3 py-2">
                         <Avatar className="h-10 w-10">
-                            <AvatarImage src="https://media.licdn.com/dms/image/v2/D560BAQGHApE1Vtq6DA/company-logo_200_200/B56ZY1OFJOGcAI-/0/1744649609317/philosopai_in_logo?e=1761782400&v=beta&t=uLNK6v7h96sXybdT42cVK0cJSZaA8KVLw8JYO5fY4oQ" />
-                            <AvatarFallback className="bg-teal-500 text-yellow-900 text-sm font-bold">
-                                {user.name[0]}
+                            <AvatarFallback className="bg-teal-500/15 text-sm font-bold text-teal-700 dark:text-teal-300">
+                                {initial}
                             </AvatarFallback>
                         </Avatar>
-                        <div className="flex flex-col">
-                            <span className='text-base font-medium text-gray-400'>
-                                {user.name}
-                            </span>
-                            <span className="text-sm text-gray-500">{user.email}</span>
+                        <div className="flex min-w-0 flex-col">
+                            <span className="truncate text-sm font-semibold text-foreground">{user.name}</span>
+                            <span className="truncate text-xs text-muted-foreground">{user.email}</span>
                         </div>
                     </div>
                 </DropdownMenuLabel>
-                <DropdownMenuSeparator className="bg-gray-600"/>
-                <DropdownMenuItem onClick={handleSignOut} className="text-gray-100 text-md font-medium focus:bg-transparent focus:text-teal-500 transition-colors cursor-pointer">
-                    <LogOut className="h-4 w-4 mr-2 hidden sm:block" />
-                    Logout
+                <DropdownMenuSeparator />
+                <div className="px-2 py-2">
+                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Appearance</p>
+                    <ThemeToggle />
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer font-medium focus:text-teal-600 dark:focus:text-teal-300">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sign out
                 </DropdownMenuItem>
-                <DropdownMenuSeparator className="block sm:hidden bg-gray-600"/>
+                <DropdownMenuSeparator className="block sm:hidden" />
                 <nav className="sm:hidden">
                     <NavItems initialStocks={initialStocks} />
                 </nav>
             </DropdownMenuContent>
         </DropdownMenu>
-    )
-}
-export default UserDropdown
+    );
+};
+
+export default UserDropdown;
