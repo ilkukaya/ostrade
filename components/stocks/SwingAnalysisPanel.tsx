@@ -1,8 +1,33 @@
 import { TriangleAlert } from 'lucide-react';
-import type { SwingAnalysisOutcome } from '@/lib/actions/swing.actions';
+import type { StockDataProvenance, SwingAnalysisOutcome } from '@/lib/actions/swing.actions';
 import { formatPrice } from '@/lib/utils';
 import { RuleRow, formatZone, statusClasses, statusLabel } from '@/components/swing/shared';
 import SaveCandidateButton from '@/components/swing/SaveCandidateButton';
+import { latestExpectedCompletedSession, type MarketId } from '@/lib/market-data/marketCalendar';
+
+function DataProvenanceFooter({ provenance }: { provenance: StockDataProvenance }) {
+    if (!provenance.latestDate) {
+        return (
+            <div className="mt-4 flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-amber-300">
+                <TriangleAlert className="h-3.5 w-3.5 shrink-0" />
+                <span>No market data stored for this symbol yet.</span>
+            </div>
+        );
+    }
+
+    const expected = latestExpectedCompletedSession(provenance.market as MarketId);
+    const isStale = provenance.latestDate < expected;
+
+    return (
+        <div className={`mt-4 flex items-center gap-2 text-xs ${isStale ? 'rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-amber-300' : 'text-gray-600'}`}>
+            {isStale ? <TriangleAlert className="h-3.5 w-3.5 shrink-0" /> : null}
+            <span>
+                Data through: {provenance.latestDate} · Provider: {provenance.provider ?? 'unknown'} · Market: {provenance.market} · Currency: {provenance.currency}
+                {isStale ? ` — stale, expected through ${expected}` : ''}
+            </span>
+        </div>
+    );
+}
 
 export default function SwingAnalysisPanel({ symbol, outcome }: { symbol: string; outcome: SwingAnalysisOutcome }) {
     if (outcome.status === 'unavailable') {
@@ -126,6 +151,8 @@ export default function SwingAnalysisPanel({ symbol, outcome }: { symbol: string
                     ))}
                 </div>
             ) : null}
+
+            <DataProvenanceFooter provenance={outcome.dataProvenance} />
         </section>
     );
 }

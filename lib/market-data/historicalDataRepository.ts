@@ -192,6 +192,29 @@ export async function getCoverageForSymbols(symbols: string[], market: string, t
     }));
 }
 
+export interface DataProvenance {
+    /** YYYY-MM-DD of the most recent stored bar, or null if nothing is
+     * stored for this instrument at all. */
+    latestDate: string | null;
+    /** Which provider produced that latest bar — never fabricated; null
+     * only alongside a null latestDate. See docs/daily-data-engine.md's
+     * "Data source attribution". */
+    provider: string | null;
+}
+
+/** What the stock detail page's "Data through: [date], Provider: [x]"
+ * footer and the backtester's dataset-provenance stamp both read — always
+ * derived live from MarketBar, never a separate tracked value that could
+ * drift from what's actually stored. */
+export async function getDataProvenance(instrument: Pick<InstrumentId, 'symbol' | 'market'>, timeframe: Timeframe = 'D'): Promise<DataProvenance> {
+    await connectToDatabase();
+    const doc = await MarketBar.findOne({ symbol: instrument.symbol.toUpperCase(), market: instrument.market ?? 'US', timeframe })
+        .sort({ date: -1 })
+        .select('date provider')
+        .lean();
+    return { latestDate: doc?.date ?? null, provider: doc?.provider ?? null };
+}
+
 export interface CoverageInfo {
     earliestDate: string | null;
     latestDate: string | null;
