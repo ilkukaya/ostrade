@@ -16,7 +16,7 @@ vi.mock('@/lib/market-data/providers/finnhub', () => ({
     finnhubProvider: { id: 'finnhub', getQuote: vi.fn(), getHistoricalPrices: vi.fn(), getCompanyProfile: vi.fn(), getFinancials: vi.fn(), getNews: vi.fn(), searchSymbols: vi.fn() },
 }));
 
-import { getHistoricalPrices } from '@/lib/market-data/service';
+import { getHistoricalPrices, getHistoricalPricesWithProvider } from '@/lib/market-data/service';
 
 const bars: HistoricalBar[] = [{ time: '2024-01-02', open: 1, high: 2, low: 0.5, close: 1.5, volume: 100 }];
 
@@ -61,5 +61,29 @@ describe('service.getHistoricalPrices routing chain', () => {
         const result = await getHistoricalPrices('AAPL', 'D');
         expect(result.ok).toBe(false);
         if (!result.ok) expect(result.error).toBe(yahooError);
+    });
+});
+
+describe('service.getHistoricalPricesWithProvider', () => {
+    beforeEach(() => {
+        stooqGetHistoricalPrices.mockReset();
+        yahooGetHistoricalPrices.mockReset();
+    });
+
+    it('attributes a successful result to the provider that actually produced it', async () => {
+        stooqGetHistoricalPrices.mockResolvedValue({ ok: false, error: { kind: 'not_found', message: 'x' } as never });
+        yahooGetHistoricalPrices.mockResolvedValue({ ok: true, data: bars });
+
+        const { result, providerId } = await getHistoricalPricesWithProvider('AAPL', 'D');
+        expect(result.ok).toBe(true);
+        expect(providerId).toBe('yahoo');
+    });
+
+    it('attributes a total failure to the last provider tried', async () => {
+        stooqGetHistoricalPrices.mockResolvedValue({ ok: false, error: { kind: 'not_found', message: 'x' } as never });
+        yahooGetHistoricalPrices.mockResolvedValue({ ok: false, error: { kind: 'rate_limit', message: 'y' } as never });
+
+        const { providerId } = await getHistoricalPricesWithProvider('AAPL', 'D');
+        expect(providerId).toBe('yahoo');
     });
 });

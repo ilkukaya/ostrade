@@ -53,17 +53,32 @@ function getHistoricalPricesChain(market: string): MarketDataProvider[] {
     return [stooqProvider, yahooProvider];
 }
 
-export async function getHistoricalPrices(symbol: string, timeframe: Timeframe = 'D'): Promise<MarketDataResult<HistoricalBar[]>> {
+export interface HistoricalPricesWithProvider {
+    result: MarketDataResult<HistoricalBar[]>;
+    /** Which provider in the chain actually produced this result (or the
+     * last one tried, if every provider failed) — see docs/market-data.md's
+     * "Data source attribution"; the sync engine stamps this onto every
+     * stored bar rather than losing which specific source it came from. */
+    providerId: string;
+}
+
+export async function getHistoricalPricesWithProvider(symbol: string, timeframe: Timeframe = 'D'): Promise<HistoricalPricesWithProvider> {
     const instrument = resolveInstrument(symbol);
     const chain = getHistoricalPricesChain(instrument.market ?? 'US');
 
     let lastError = new MarketDataError('unavailable', `No historical-data provider available for ${symbol}`);
+    let lastProviderId = 'none';
     for (const provider of chain) {
         const result = await provider.getHistoricalPrices(symbol, timeframe);
-        if (result.ok) return result;
+        if (result.ok) return { result, providerId: provider.id };
         lastError = result.error;
+        lastProviderId = provider.id;
     }
-    return { ok: false, error: lastError };
+    return { result: { ok: false, error: lastError }, providerId: lastProviderId };
+}
+
+export async function getHistoricalPrices(symbol: string, timeframe: Timeframe = 'D'): Promise<MarketDataResult<HistoricalBar[]>> {
+    return (await getHistoricalPricesWithProvider(symbol, timeframe)).result;
 }
 
 export function getCompanyProfile(symbol: string): Promise<MarketDataResult<CompanyProfile>> {
