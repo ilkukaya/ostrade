@@ -81,7 +81,7 @@ client-supplied user identifier.
 ```
 npm run typecheck  # clean
 npm run lint       # 0 errors (12 pre-existing warnings, unrelated to this pass)
-npm test           # 490 passed, 4 skipped
+npm test           # 490 passed, 4 skipped at the time of this pass (493 as of the final production-hardening pass — later work added a few more)
 npm run build      # succeeds, including with zero credentials
 ```
 

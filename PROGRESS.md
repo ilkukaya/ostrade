@@ -369,3 +369,92 @@ picture; this entry is the changelog-style summary.
   (any alert ID could be deleted/toggled, not just the caller's own) —
   see `docs/auth-audit.md` for the full audit, what was fixed, and the
   regression tests added.
+
+## Production Readiness — Final Status
+
+Everything that can be verified **without a live deployment or real
+credentials** is done, verified, and pushed to `main`. Everything that
+genuinely **requires** them is explicitly not done — this section says
+which is which, honestly, rather than implying "deployment complete"
+when it isn't.
+
+### ✅ Done and verified (code, tests, CI, docs — all in this repo)
+
+- Market universes complete/accurate (BIST 30/50/100, S&P 500 verified;
+  Nasdaq-100 substantially improved, honestly still partial) —
+  `docs/market-data.md`, `docs/bist.md`.
+- BIST company names complete for all 100 tracked constituents.
+- Local-first data consistency verified across all bar-consuming
+  features; two real gaps found and fixed.
+- No automatic market-data sync added (intentional, per this task's own
+  instruction) — EOD sync stays manual via `/data` for this first
+  deployment.
+- `main` branch exists, is pushed, and is fast-forwarded to this same
+  final commit — `claude/pensive-tesla-ut93ow` left intact, not deleted.
+- `.github/workflows/ci.yml` exists (typecheck/lint/test/build on push
+  and PR to `main`, zero secrets referenced).
+- Dependency audit: 72 → 3 vulnerabilities (the 2 remaining need a
+  breaking major upgrade with no in-range fix; documented, not forced).
+- Secret audit: no real secrets in git history or tracked files; fixed
+  one real credential-logging bug (`database/mongoose.ts` was printing
+  the full `MONGODB_URI`, including its password, to stdout).
+- Netlify config (`netlify.toml`) reviewed and confirmed already correct
+  — no static export, no incompatibility found, nothing changed.
+- Minimum required production env vars identified and documented
+  (`.env.example`, `docs/deployment-netlify.md`'s "Production summary").
+- MongoDB Atlas readiness reviewed in code: serverless-safe connection
+  reuse confirmed, no build-time DB connection confirmed, no credentials
+  reach the browser confirmed, TTL indexes confirmed correct (only
+  `ScannerRun`, by design). Setup steps documented, not performed (no
+  Atlas account access from this session).
+- Better Auth / Server Action authorization audit: real gaps found and
+  fixed (anonymous invocation, an IDOR, a client-supplied identity
+  trusted where it shouldn't have been) — `docs/auth-audit.md`.
+- UI cosmetics cleanup (donate popup, Siray banner) done without
+  touching the AGPL/OpenStock attribution or the *functional* Siray.ai
+  AI-provider fallback.
+- Found and fixed a live bug unrelated to any specific checklist item:
+  the welcome email hardcoded a link to the original OpenStock
+  template's own Vercel demo site, not this deployment.
+- Pre-deploy verification, from a clean install, on the final commit:
+  `npm ci` (722 packages, 3 known/documented vulnerabilities),
+  `npm run typecheck` (clean), `npm run lint` (0 errors, 11 pre-existing
+  warnings), `npm test` (493 passed, 4 skipped), `npm run build`
+  (succeeds with **zero** `.env` file present).
+- Documentation pass: README (new Daily & Weekly Workflow section, a
+  stale "protected via middleware" claim corrected), `docs/deployment-
+  netlify.md` (Production summary block), `docs/daily-data-engine.md`,
+  `docs/bist.md`, `docs/market-data.md`, `docs/security-audit.md`,
+  `docs/auth-audit.md`, this file.
+
+### ⛔ Not done — genuinely requires the owner, not possible from this session
+
+This session has no MongoDB Atlas account, no Netlify project connected
+to this app (confirmed via live Netlify API access: this account's 27
+sites include none named `ostrade`), and therefore no live URL to sign
+in to or browser-test against. These are not skipped by choice — they
+are outside what a sandboxed coding session can do on its own:
+
+- MongoDB Atlas cluster creation, dedicated DB user creation, Network
+  Access configuration.
+- Netlify project creation and environment variable configuration
+  (`MONGODB_URI`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`,
+  `AUTHORIZED_EMAIL` at minimum).
+- The actual deploy, and everything downstream of it: owner sign-up/
+  login, first BIST/US data seed, Daily Analysis generation, and every
+  browser smoke test this task's spec called for (`/review`, `/scanner`,
+  candidate save, `/journal`, `/backtest`, `/monte-carlo`, `/portfolio`,
+  a provider-failure simulation against the live deployment, and a
+  Netlify function-log review).
+- Switching GitHub's repository default branch to `main` — there is no
+  GitHub API/MCP tool for repository-level settings (only branch, file,
+  and PR-level ones); this is a one-click **Settings → General → Default
+  branch** action only the repository owner can take.
+
+**Given the above, this deployment is NOT complete per this task's own
+definition of done** (which explicitly lists live login, live data seeds,
+and live browser testing as required). What's complete is everything a
+coding session can verify without those: the code is correct, tested,
+documented, and ready — the remaining steps are the owner's to take,
+and `docs/deployment-netlify.md`'s "Production summary" says exactly
+what to do and in what order.

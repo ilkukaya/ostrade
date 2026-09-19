@@ -129,6 +129,6 @@ project itself has a dependency conflict.
 npm ci             # clean, matches the committed lockfile
 npm run typecheck  # clean
 npm run lint       # 0 errors (12 pre-existing warnings, unrelated to this pass)
-npm test           # 475 passed, 4 skipped
+npm test           # 475 passed, 4 skipped at the time of this pass (493 as of the final production-hardening pass — later work added tests, none of it touched dependencies)
 npm run build      # succeeds, including with zero market-data credentials
 ```
