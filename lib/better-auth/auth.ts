@@ -5,25 +5,10 @@ import {nextCookies} from "better-auth/next-js";
 import { sendPasswordResetEmail } from "@/lib/nodemailer/reset-password";
 
 
-let authInstance: ReturnType<typeof betterAuth> | null = null;
-
-
-export const getAuth = async () => {
-    if(authInstance) {
-        return authInstance;
-    }
-
-    const mongoose = await connectToDatabase();
-    const db = mongoose.connection;
-    const database = db.db;
-
-    if (!db || !database) {
-        throw new Error("MongoDB connection not found!");
-    }
-
-    authInstance = betterAuth({
+function initAuth(database: Parameters<typeof mongodbAdapter>[0]) {
+    return betterAuth({
         database: mongodbAdapter(database),
-       secret: process.env.BETTER_AUTH_SECRET,
+        secret: process.env.BETTER_AUTH_SECRET,
         baseURL: process.env.BETTER_AUTH_URL,
         emailAndPassword: {
             enabled: true,
@@ -43,8 +28,25 @@ export const getAuth = async () => {
             },
         },
         plugins: [nextCookies()],
-
     });
+}
+
+let authInstance: ReturnType<typeof initAuth> | null = null;
+
+export const getAuth = async () => {
+    if(authInstance) {
+        return authInstance;
+    }
+
+    const mongooseConn = await connectToDatabase();
+    const db = mongooseConn.connection;
+    const database = db.db;
+
+    if (!db || !database) {
+        throw new Error("MongoDB connection not found!");
+    }
+
+    authInstance = initAuth(database);
 
     return authInstance;
 }

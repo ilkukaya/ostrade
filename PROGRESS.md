@@ -337,7 +337,11 @@ picture; this entry is the changelog-style summary.
 - A handful of `<img>` → `next/image` and React-hooks-exhaustive-deps
   ESLint *warnings* remain (not errors — they don't block the build).
   Tracked, not urgent.
-- `npm audit` reports vulnerabilities in transitive dependencies;
-  `npm audit fix` currently crashes with an internal npm bug unrelated to
-  this project. Worth retrying after a `package-lock.json` refresh in a
-  normal (non-sandboxed) environment.
+- ✅ `npm audit`: resolved — down from 72 vulnerabilities to 3, via five
+  non-breaking direct-dependency bumps (`next`, `better-auth`, `mongoose`,
+  `inngest`, `vitest`) plus two small type-fixups they required. The
+  `npm audit fix` internal-npm-bug workaround (`--legacy-peer-deps`, then
+  a plain re-install to normalize the lockfile) is documented for next
+  time. The 2 remaining findings (`nodemailer`, a `postcss` copy bundled
+  in `next`) need a breaking major upgrade with no in-range fix and are
+  assessed as low-reachability — see `docs/security-audit.md`.

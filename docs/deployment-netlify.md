@@ -83,6 +83,15 @@ stock detail, swing analysis) works without them:
 - **Adanos** (`ADANOS_API_KEY`) — optional sentiment card on the stock
   detail page.
 
+## Dependency security
+
+See `docs/security-audit.md` for the full `npm audit` pass: what was
+fixed (five direct-dependency bumps, all non-breaking), what's left
+(`nodemailer` and a `postcss` copy bundled inside `next`, both needing a
+breaking major upgrade with no in-range fix — assessed as low-reachability
+and documented rather than forced), and a note on an npm/Arborist internal
+bug encountered along the way and how it was worked around.
+
 ## Verifying the build locally before deploying
 
 ```bash

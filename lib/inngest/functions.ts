@@ -82,7 +82,7 @@ export const checkStockAlerts = inngest.createFunction(
         }
 
         // Step 2: Group by symbol
-        const typedAlerts = activeAlerts as AlertRecord[];
+        const typedAlerts = activeAlerts as unknown as AlertRecord[];
         const symbols = [...new Set(typedAlerts.map((a) => a.symbol))];
 
         // Step 3: Fetch prices
@@ -108,7 +108,7 @@ export const checkStockAlerts = inngest.createFunction(
         type TriggeredAlert = { alert: AlertRecord; currentPrice: number };
         const triggeredAlerts: TriggeredAlert[] = [];
 
-        for (const alert of activeAlerts as AlertRecord[]) {
+        for (const alert of activeAlerts as unknown as AlertRecord[]) {
             const currentPrice = prices[alert.symbol];
             if (!currentPrice) continue;
 
@@ -184,7 +184,7 @@ export const checkCandidateOutcomes = inngest.createFunction(
 
         const result = await step.run('evaluate-and-update-outcomes', async () => {
             const { updateActiveCandidateOutcomes } = await import("@/lib/candidates/updateOutcomes");
-            return updateActiveCandidateOutcomes(activeCandidates as ActiveCandidateRecord[]);
+            return updateActiveCandidateOutcomes(activeCandidates as unknown as ActiveCandidateRecord[]);
         });
 
         return {
