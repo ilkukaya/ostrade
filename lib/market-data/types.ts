@@ -9,12 +9,23 @@
  * without touching the UI or analysis code.
  */
 
-/** A normalized instrument identifier — not every symbol is NYSE/NASDAQ. */
+/** A normalized instrument identifier — not every symbol is NYSE/NASDAQ.
+ * `symbol` is OSTRADE's own business-layer identifier (e.g. "THYAO") and is
+ * never a provider-specific notation; `providerSymbol` (e.g. "THYAO.IS") is
+ * the translation a specific provider needs, and belongs only inside
+ * provider/instrument-metadata code — never in UI or analysis logic. See
+ * lib/market-data/instruments/ and docs/bist.md. */
 export interface InstrumentId {
     symbol: string;
+    providerSymbol?: string;
     exchange?: string;
     market?: string;
     currency?: string;
+    /** IANA timezone the instrument's exchange trades in (e.g.
+     * "Europe/Istanbul", "America/New_York") — used to derive the correct
+     * market-date for a session without accidentally shifting it a day via
+     * naive UTC conversion. See lib/market-data/marketCalendar.ts. */
+    timezone?: string;
 }
 
 /** Daily/weekly/monthly historical bar resolution. Intraday is intentionally
@@ -41,6 +52,12 @@ export interface HistoricalBar {
     low: number;
     close: number;
     volume: number;
+    /** Split/dividend-adjusted close, when the provider distinguishes it
+     * from raw `close`. Technical analysis and backtesting always use
+     * `close` for consistency across providers (see docs/market-data.md's
+     * "Adjusted vs unadjusted prices" section) — `adjustedClose` is stored
+     * for transparency/future use, never silently substituted in. */
+    adjustedClose?: number;
 }
 
 export interface CompanyProfile {
