@@ -70,7 +70,7 @@ export default function WeeklyReviewClient({ universes }: { universes: UniverseO
     }, [data]);
 
     return (
-        <div className="space-y-6">
+        <div className="min-w-0 max-w-full space-y-6">
             <div className="flex flex-col gap-4 rounded-2xl border border-gray-800 bg-gray-950/40 p-5 backdrop-blur-sm">
                 <div className="flex flex-wrap items-end gap-4">
                     <Field label="Market">
@@ -141,7 +141,7 @@ function WeeklyTable({ symbols }: { symbols: WeeklySymbolSummary[] }) {
     if (symbols.length === 0) return <p className="text-sm text-gray-500">No symbols observed in this window.</p>;
 
     return (
-        <div className="overflow-x-auto rounded-xl border border-gray-800">
+        <div className="ostrade-scroll-x rounded-xl border border-gray-800">
             <table className="w-full min-w-[900px] text-left text-sm">
                 <thead className="bg-gray-900/60 text-xs uppercase tracking-wide text-gray-500">
                     <tr>
