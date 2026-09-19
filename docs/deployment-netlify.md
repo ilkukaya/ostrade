@@ -164,6 +164,25 @@ npm run build        # this must succeed WITHOUT any .env file present —
                       # connection just to compile")
 ```
 
+## Known gotcha: `NODE_ENV=production` and devDependencies
+
+Netlify's build install step respects the `NODE_ENV` environment variable
+configured for the site — with `NODE_ENV=production` set (required, see
+"Production summary" above), `npm install` skips `devDependencies`
+entirely. That breaks `next build` for any package it actually needs at
+build time (Tailwind's PostCSS plugin, `tw-animate-css` — imported
+directly by `app/globals.css` — and, since `next build` also runs
+type-checking and linting by default, `typescript`, every `@types/*`
+package, and `eslint`/`eslint-config-next`/`@eslint/eslintrc` too).
+Unlike Vercel, Netlify doesn't special-case this away. The fix already
+applied here: these packages live in `dependencies`, not
+`devDependencies`, in `package.json` — only `tsx` and `vitest` (pure
+test/script tooling, never touched by `next build`) remain dev-only.
+Verified by simulating Netlify's exact install (`npm ci --omit=dev`)
+followed by `NODE_ENV=production npm run build` locally — this must keep
+succeeding; if a future dependency add reintroduces this, that's the
+first thing to check.
+
 ## Known constraint: MongoDB Atlas free tier auto-pauses
 
 Atlas pauses an M0 (free) cluster after roughly 60 days with no
