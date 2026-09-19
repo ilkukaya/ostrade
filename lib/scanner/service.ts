@@ -66,10 +66,12 @@ async function analyzeSymbol(
         }
 
         const { snapshot, result } = detailed;
-        const snapshotBars = snapshot.bars;
-        const previousBar = snapshotBars.length >= 2 ? snapshotBars[snapshotBars.length - 2] : undefined;
+        const currentBar = bars[bars.length - 1];
+        const previousBar = bars.length >= 2 ? bars[bars.length - 2] : undefined;
         const changePercent =
-            previousBar && previousBar.close !== 0 ? ((snapshot.price - previousBar.close) / previousBar.close) * 100 : 0;
+            currentBar && previousBar && previousBar.close !== 0
+                ? ((currentBar.close - previousBar.close) / previousBar.close) * 100
+                : 0;
 
         const doc: ScannerResultDoc = {
             symbol: instrument.symbol,
