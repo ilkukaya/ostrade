@@ -112,6 +112,7 @@ export default function DataAdminClient({
         const market = 'TR';
         const requestId = ++activeRequestIds.current[market];
         setRebuildMessage('Preparing BIST rebuild…');
+        setSnapshotLoading((s) => ({ ...s, TR: true }));
         try {
             const { runId, deleted } = await rebuildBistDailyData();
             setRebuildMessage(
@@ -132,11 +133,24 @@ export default function DataAdminClient({
 
             const updated = await getFreshness(market);
             setFreshness((f) => ({ ...f, [market]: updated }));
-            setSnapshotResults((r) => ({ ...r, TR: undefined }));
-            setRebuildMessage(current.status === 'completed' ? 'BIST rebuild completed. Generate Daily Analysis again before using Review/Scanner.' : 'BIST rebuild stopped before completion.');
+
+            if (current.status === 'completed') {
+                setRebuildMessage('BIST daily bars rebuilt. Generating Daily Analysis…');
+                const snapshotResult = await runDailySnapshotGeneration('TR');
+                setSnapshotResults((r) => ({ ...r, TR: snapshotResult }));
+                const skipped = snapshotResult.skipped.length;
+                setRebuildMessage(
+                    `BIST rebuild completed. Generated ${snapshotResult.processed}/${snapshotResult.totalSymbols} Daily Analysis snapshots${skipped > 0 ? `; ${skipped} skipped` : ''}. Review and Scanner are ready.`,
+                );
+            } else {
+                setSnapshotResults((r) => ({ ...r, TR: undefined }));
+                setRebuildMessage('BIST rebuild stopped before completion.');
+            }
         } catch (error) {
             console.error('BIST rebuild failed', error);
             setRebuildMessage(error instanceof Error ? error.message : 'BIST rebuild failed.');
+        } finally {
+            setSnapshotLoading((s) => ({ ...s, TR: false }));
         }
     };
 
