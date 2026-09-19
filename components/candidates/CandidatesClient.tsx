@@ -23,9 +23,13 @@ function outcomeDate(c: SerializedCandidate): string | null {
     return c.firstTargetHitAt ?? c.stopHitAt ?? c.secondTargetHitAt ?? c.closedAt ?? null;
 }
 
-function formatZone(zone?: { low: number; high: number }): string {
+function candidateCurrency(candidate: Pick<SerializedCandidate, 'market'>): string {
+    return candidate.market === 'TR' ? 'TRY' : 'USD';
+}
+
+function formatZone(zone: { low: number; high: number } | undefined, currency: string): string {
     if (!zone) return '—';
-    return `${formatPrice(zone.low)} - ${formatPrice(zone.high)}`;
+    return `${formatPrice(zone.low, currency)} - ${formatPrice(zone.high, currency)}`;
 }
 
 /** Only long setups exist today (see docs/candidates.md), so this always
@@ -205,6 +209,7 @@ function CandidateRow({
 }) {
     const meta = STATUS_META[candidate.status];
     const outcomeAt = outcomeDate(candidate);
+    const currency = candidateCurrency(candidate);
 
     return (
         <>
@@ -225,16 +230,16 @@ function CandidateRow({
                     {candidate.score}
                     <span className="text-gray-600">/{candidate.maxScore}</span>
                 </td>
-                <td className="px-3 py-3 text-gray-300">{formatZone(candidate.entryZone)}</td>
-                <td className="px-3 py-3 text-right text-gray-300">{candidate.stopLevel !== undefined ? formatPrice(candidate.stopLevel) : '—'}</td>
-                <td className="px-3 py-3 text-right text-gray-300">{candidate.targets?.[0] !== undefined ? formatPrice(candidate.targets[0]) : '—'}</td>
-                <td className="px-3 py-3 text-right text-gray-300">{candidate.targets?.[1] !== undefined ? formatPrice(candidate.targets[1]) : '—'}</td>
+                <td className="px-3 py-3 text-gray-300">{formatZone(candidate.entryZone, currency)}</td>
+                <td className="px-3 py-3 text-right text-gray-300">{candidate.stopLevel !== undefined ? formatPrice(candidate.stopLevel, currency) : '—'}</td>
+                <td className="px-3 py-3 text-right text-gray-300">{candidate.targets?.[0] !== undefined ? formatPrice(candidate.targets[0], currency) : '—'}</td>
+                <td className="px-3 py-3 text-right text-gray-300">{candidate.targets?.[1] !== undefined ? formatPrice(candidate.targets[1], currency) : '—'}</td>
                 <td className="px-3 py-3 text-right text-gray-300">{candidate.riskReward !== undefined ? `1:${candidate.riskReward.toFixed(2)}` : '—'}</td>
                 <td className="px-3 py-3">
                     <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${meta.classes}`}>{meta.label}</span>
                     {outcomeAt ? <div className="mt-1 text-[11px] text-gray-600">{new Date(outcomeAt).toLocaleDateString()}</div> : null}
                 </td>
-                <td className="px-3 py-3 text-right text-gray-300">{currentPrice !== undefined ? formatPrice(currentPrice) : '—'}</td>
+                <td className="px-3 py-3 text-right text-gray-300">{currentPrice !== undefined ? formatPrice(currentPrice, currency) : '—'}</td>
                 <td className="px-3 py-3 text-right">
                     {candidate.status === 'ACTIVE' ? (
                         <button
