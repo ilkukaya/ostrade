@@ -70,7 +70,7 @@ export default function PortfolioClient({ holdings, valuation }: { holdings: Ser
     };
 
     return (
-        <div className="space-y-6">
+        <div className="min-w-0 max-w-full space-y-6">
             <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-4 rounded-2xl border border-gray-800 bg-gray-950/40 p-4">
                 <Field label="Symbol">
                     <input type="text" value={symbol} onChange={(e) => setSymbol(e.target.value.toUpperCase())} placeholder="e.g. AAPL" className={inputClass} />
@@ -120,7 +120,7 @@ export default function PortfolioClient({ holdings, valuation }: { holdings: Ser
             {holdings.length === 0 ? (
                 <div className="rounded-lg border border-gray-800 bg-black/20 p-8 text-center text-sm text-gray-500">No holdings tracked yet.</div>
             ) : (
-                <div className="overflow-x-auto rounded-xl border border-gray-800">
+                <div className="ostrade-scroll-x rounded-xl border border-gray-800">
                     <table className="w-full min-w-[900px] text-left text-sm">
                         <thead className="bg-gray-900/60 text-xs uppercase tracking-wide text-gray-500">
                             <tr>
