@@ -1,9 +1,10 @@
 'use client';
 
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Loader2, Play } from 'lucide-react';
+import { Loader2, Play, TriangleAlert } from 'lucide-react';
 import { advanceBacktestRun, startBacktestRun } from '@/lib/actions/backtest.actions';
-import { DEFAULT_BACKTEST_EXECUTION, type BacktestProgress, type BacktestRunListItem } from '@/lib/backtest/types';
+import { DEFAULT_BACKTEST_EXECUTION, type BacktestDatasetProvenance, type BacktestProgress, type BacktestRunListItem } from '@/lib/backtest/types';
+import { CUSTOM_WATCHLIST_UNIVERSE_ID } from '@/lib/market-data/universe';
 import { formatPrice } from '@/lib/utils';
 
 interface UniverseOption {
@@ -173,6 +174,11 @@ export default function BacktestClient({ universes, pastRuns }: { universes: Uni
                         {progress.skipped.length > 0 ? <span className="text-gray-600">{progress.skipped.length} unavailable</span> : null}
                     </div>
 
+                    {progress.universeId !== CUSTOM_WATCHLIST_UNIVERSE_ID ? (
+                        <SurvivorshipBiasWarning universeName={universes.find((u) => u.id === progress!.universeId)?.name ?? progress.universeId} />
+                    ) : null}
+                    <DatasetProvenanceLine provenance={progress.datasetProvenance} />
+
                     {progress.summary ? <SummaryPanel summary={progress.summary} /> : null}
                     {progress.trainSummary && progress.holdoutSummary ? (
                         <TrainHoldoutPanel train={progress.trainSummary} holdout={progress.holdoutSummary} />
@@ -242,6 +248,30 @@ function TrainHoldoutPanel({ train, holdout }: { train: NonNullable<BacktestProg
                 numbers as the more honest estimate of future performance.
             </p>
         </div>
+    );
+}
+
+function SurvivorshipBiasWarning({ universeName }: { universeName: string }) {
+    return (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-amber-300">
+            <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span>
+                Survivorship bias: this run applies today&apos;s {universeName} constituent list across the entire
+                historical period. Companies removed from the index since then (delisted, acquired, or dropped) are
+                not included, which can make the historical results look stronger than they would have been for
+                someone actually holding the index the whole time.
+            </span>
+        </div>
+    );
+}
+
+function DatasetProvenanceLine({ provenance }: { provenance: BacktestDatasetProvenance }) {
+    return (
+        <p className="text-xs text-gray-600">
+            Data through {provenance.latestBarDate ?? '—'} · Source{provenance.providers.length === 1 ? '' : 's'}:{' '}
+            {provenance.providers.length > 0 ? provenance.providers.join(', ') : '—'} · Snapshot taken{' '}
+            {new Date(provenance.generatedAt).toLocaleString()}
+        </p>
     );
 }
 

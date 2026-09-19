@@ -89,6 +89,31 @@ export interface BacktestSkippedSymbol {
     reason: string;
 }
 
+/**
+ * Stamped once when a run starts and updated as symbols are processed —
+ * answers "what data was this backtest actually run against?" so a run is
+ * never silently re-interpreted later as if it used data that has since
+ * changed (see docs/backtesting.md, docs/daily-data-engine.md's dataset
+ * provenance requirement). `strategyFingerprint` (on BacktestRunDocument)
+ * already covers the "strategy version" half of that question — this
+ * covers the data half.
+ */
+export interface BacktestDatasetProvenance {
+    /** When this run was launched — the run's own fixed point in time,
+     * never updated afterward. Two runs with identical config still get
+     * distinct values here, so they're never confused with each other even
+     * if the underlying data changed between them. */
+    generatedAt: string;
+    /** The latest stored-bar date observed across every symbol actually
+     * read during this run, or null before any symbol has been processed
+     * yet. */
+    latestBarDate: string | null;
+    /** Distinct market-data providers observed across the symbols this run
+     * read — e.g. a US universe backtest naming both `stooq` and `yahoo`
+     * makes a mixed-source dataset visible instead of implying one source. */
+    providers: string[];
+}
+
 export type BacktestRunStatus = 'running' | 'completed' | 'failed';
 
 export interface BacktestProgress {
@@ -112,6 +137,7 @@ export interface BacktestProgress {
      * was set. */
     trainSummary?: BacktestSummary;
     holdoutSummary?: BacktestSummary;
+    datasetProvenance: BacktestDatasetProvenance;
 }
 
 export interface BacktestRunListItem {
@@ -122,4 +148,5 @@ export interface BacktestRunListItem {
     completedAt?: string;
     executionConfig: BacktestExecutionConfig;
     summary?: BacktestSummary;
+    datasetProvenance: BacktestDatasetProvenance;
 }

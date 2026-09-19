@@ -2,8 +2,8 @@ import { connectToDatabase } from '@/database/mongoose';
 import { BacktestRun, type BacktestRunDocument } from '@/database/models/backtestRun.model';
 import { Watchlist } from '@/database/models/watchlist.model';
 import { CUSTOM_WATCHLIST_UNIVERSE_ID, getStaticUniverse } from '@/lib/market-data/universe';
-import { getHistoricalPrices } from '@/lib/market-data/service';
-import { describeMarketDataError } from '@/lib/market-data/types';
+import { getBarsOrFetch, getDataProvenance } from '@/lib/market-data/historicalDataRepository';
+import { resolveInstrument } from '@/lib/market-data/instruments/resolve';
 import { defaultSwingStrategyConfig, type SwingStrategyConfig } from '@/lib/swing/config';
 import { fingerprintStrategyConfig } from '@/lib/swing/configFingerprint';
 import { createConcurrencyLimiter } from '@/lib/concurrencyLimiter';
@@ -15,7 +15,7 @@ import {
     computeBacktestSummary,
     splitTrainHoldout,
 } from './aggregate';
-import type { BacktestExecutionConfig, BacktestProgress, BacktestRunListItem, BacktestSkippedSymbol, BacktestTrade } from './types';
+import type { BacktestDatasetProvenance, BacktestExecutionConfig, BacktestProgress, BacktestRunListItem, BacktestSkippedSymbol, BacktestTrade } from './types';
 
 /** The full set of derived fields recomputed whenever a run's trade list is
  * considered final — shared by the trivially-empty-universe path in
@@ -53,21 +53,37 @@ async function resolveUniverseSymbols(universeId: string, userId: string): Promi
     return universe.symbols.map((s) => s.symbol);
 }
 
+interface BacktestSymbolOutcome {
+    trades?: BacktestTrade[];
+    skip?: BacktestSkippedSymbol;
+    /** Present whenever bars were actually read (even if they produced zero
+     * trades) — feeds the run's accumulated datasetProvenance. */
+    provenance?: { provider: string | null; latestDate: string | null };
+}
+
+/**
+ * Reads full local history for one symbol — unlike the scanner/stock page's
+ * capped recent-bars window, a backtest needs the entire available range,
+ * per docs/daily-data-engine.md's "full range for backtesting" (an
+ * indicator's warm-up period and the simulation's own chronology both
+ * depend on everything before `execConfig.startDate` still being present,
+ * not just the window a live signal would need).
+ */
 async function backtestSymbol(
     symbol: string,
     strategyConfig: SwingStrategyConfig,
     execConfig: BacktestExecutionConfig,
-): Promise<{ trades?: BacktestTrade[]; skip?: BacktestSkippedSymbol }> {
+): Promise<BacktestSymbolOutcome> {
     try {
-        const barsResult = await getHistoricalPrices(symbol, 'D');
-        if (!barsResult.ok) {
-            return { skip: { symbol, reason: describeMarketDataError(barsResult.error) } };
+        const instrument = resolveInstrument(symbol);
+        const bars = await getBarsOrFetch(instrument);
+        if (bars.length === 0) {
+            return { skip: { symbol: instrument.symbol, reason: 'No historical data available for this symbol.' } };
         }
-        if (barsResult.data.length === 0) {
-            return { skip: { symbol, reason: 'No historical data available for this symbol.' } };
-        }
-        const { trades } = simulateSymbolBacktest(symbol, barsResult.data, strategyConfig, execConfig);
-        return { trades };
+
+        const provenance = await getDataProvenance(instrument);
+        const { trades } = simulateSymbolBacktest(instrument.symbol, bars, strategyConfig, execConfig);
+        return { trades, provenance };
     } catch (error) {
         // A bug or unexpected exception simulating one symbol must never
         // take down the whole batch/run — every other symbol still gets a
@@ -76,6 +92,18 @@ async function backtestSymbol(
         console.error(`Backtest: unexpected error simulating ${symbol}`, error);
         return { skip: { symbol, reason: 'Unexpected error simulating this symbol.' } };
     }
+}
+
+function accumulateProvenance(outcomes: BacktestSymbolOutcome[]): { providers: string[]; latestBarDate: string | null } {
+    const providers = new Set<string>();
+    let latestBarDate: string | null = null;
+    for (const outcome of outcomes) {
+        if (outcome.provenance?.provider) providers.add(outcome.provenance.provider);
+        if (outcome.provenance?.latestDate && (!latestBarDate || outcome.provenance.latestDate > latestBarDate)) {
+            latestBarDate = outcome.provenance.latestDate;
+        }
+    }
+    return { providers: [...providers], latestBarDate };
 }
 
 export interface StartBacktestParams {
@@ -112,6 +140,7 @@ export async function startBacktest(params: StartBacktestParams): Promise<{ runI
         cursor: 0,
         trades: [],
         skipped: [],
+        datasetProvenance: { generatedAt: now.toISOString(), latestBarDate: null, providers: [] } satisfies BacktestDatasetProvenance,
         startedAt: now,
         updatedAt: now,
         completedAt: isTriviallyDone ? now : undefined,
@@ -154,6 +183,7 @@ export async function runBacktestBatch(params: RunBacktestBatchParams): Promise<
 
         const newTrades = outcomes.flatMap((o) => o.trades ?? []);
         const newSkips = outcomes.map((o) => o.skip).filter((s): s is BacktestSkippedSymbol => Boolean(s));
+        const { providers: newProviders, latestBarDate: newLatestBarDate } = accumulateProvenance(outcomes);
 
         const newCursor = run.cursor + batch.length;
         const isDone = newCursor >= run.symbols.length;
@@ -163,6 +193,8 @@ export async function runBacktestBatch(params: RunBacktestBatchParams): Promise<
             run._id,
             {
                 $push: { trades: { $each: newTrades }, skipped: { $each: newSkips } },
+                ...(newProviders.length > 0 ? { $addToSet: { 'datasetProvenance.providers': { $each: newProviders } } } : {}),
+                ...(newLatestBarDate ? { $max: { 'datasetProvenance.latestBarDate': newLatestBarDate } } : {}),
                 $set: {
                     cursor: newCursor,
                     updatedAt: now,
@@ -205,6 +237,7 @@ function toProgress(run: BacktestRunDocument): BacktestProgress {
         byScoreBucket: run.byScoreBucket,
         trainSummary: run.trainSummary,
         holdoutSummary: run.holdoutSummary,
+        datasetProvenance: run.datasetProvenance,
     };
 }
 
@@ -212,7 +245,7 @@ export async function listBacktestRuns(userId: string): Promise<BacktestRunListI
     await connectToDatabase();
     const runs = await BacktestRun.find(
         { userId },
-        { universeId: 1, status: 1, startedAt: 1, completedAt: 1, executionConfig: 1, summary: 1 },
+        { universeId: 1, status: 1, startedAt: 1, completedAt: 1, executionConfig: 1, summary: 1, datasetProvenance: 1 },
     )
         .sort({ startedAt: -1 })
         .lean();
@@ -225,5 +258,6 @@ export async function listBacktestRuns(userId: string): Promise<BacktestRunListI
         completedAt: run.completedAt?.toISOString(),
         executionConfig: run.executionConfig,
         summary: run.summary,
+        datasetProvenance: run.datasetProvenance,
     }));
 }

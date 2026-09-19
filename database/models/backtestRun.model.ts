@@ -1,6 +1,6 @@
 import { Schema, model, models, type Document, type Model } from 'mongoose';
 import type { SwingStrategyConfig } from '@/lib/swing/config';
-import type { BacktestExecutionConfig, BacktestSkippedSymbol, BacktestTrade } from '@/lib/backtest/types';
+import type { BacktestDatasetProvenance, BacktestExecutionConfig, BacktestSkippedSymbol, BacktestTrade } from '@/lib/backtest/types';
 import type { BacktestGroupStats, BacktestSummary } from '@/lib/backtest/aggregate';
 
 export type BacktestRunStatus = 'running' | 'completed' | 'failed';
@@ -40,6 +40,11 @@ export interface BacktestRunDocument extends Document {
      * was set — see lib/backtest/aggregate.ts::splitTrainHoldout. */
     trainSummary?: BacktestSummary;
     holdoutSummary?: BacktestSummary;
+
+    /** What data this run actually read — see BacktestDatasetProvenance's
+     * doc comment. Always present (set at creation, refined as symbols are
+     * processed), never optional the way the derived summary fields are. */
+    datasetProvenance: BacktestDatasetProvenance;
 
     startedAt: Date;
     updatedAt: Date;
@@ -97,6 +102,8 @@ const BacktestRunSchema = new Schema<BacktestRunDocument>({
     byScoreBucket: { type: Array },
     trainSummary: { type: Schema.Types.Mixed },
     holdoutSummary: { type: Schema.Types.Mixed },
+
+    datasetProvenance: { type: Schema.Types.Mixed, required: true },
 
     startedAt: { type: Date, required: true, default: Date.now },
     updatedAt: { type: Date, required: true, default: Date.now },
