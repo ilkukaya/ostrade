@@ -3,7 +3,7 @@ import { connectToDatabase } from '@/database/mongoose';
 /**
  * Private-terminal access control.
  *
- * When AUTHORIZED_EMAIL is unset, the app behaves like vanilla OpenStock
+ * When AUTHORIZED_EMAIL is unset, the app behaves like vanilla OSTRADE
  * (open sign-up) — this is the default before an owner has configured their
  * private deployment. Once set, it is the only email allowed to hold an
  * account; every other sign-up attempt is rejected server-side regardless of
