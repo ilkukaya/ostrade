@@ -345,6 +345,15 @@ picture; this entry is the changelog-style summary.
   time. The 2 remaining findings (`nodemailer`, a `postcss` copy bundled
   in `next`) need a breaking major upgrade with no in-range fix and are
   assessed as low-reachability — see `docs/security-audit.md`.
+- ✅ Market universe completeness audit: BIST 30/50/100 and S&P 500 are
+  now verified-complete, exact constituent lists (previously curated
+  approximations marked `partial: true`) — cross-validated across
+  independent sources with exact expected/actual counts, dated, and
+  cited. Only Nasdaq-100 remains `partial: true`, now with a much more
+  accurate 101-ticker best-effort snapshot and a doc comment naming the
+  specific unresolved gap. See `docs/market-data.md`'s "Universe
+  data-quality disclosure" for the full per-universe report and
+  `docs/bist.md` for BIST specifics.
 - ✅ Server Action authorization audit: found and fixed six previously
   unprotected server actions (price alerts, watchlist, and — the finding
   that prompted the whole audit — an auth-free candidate-snapshot/trade

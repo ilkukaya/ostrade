@@ -17,9 +17,13 @@ export interface MarketUniverse {
      * they are never scraped or re-fetched live. See docs/market-data.md. */
     asOf: string;
     /** Set only on a universe that is explicitly a partial/curated subset
-     * of a larger real index (see universes/sp500.ts), so the UI can be
+     * of a larger real index (see universes/nasdaq100.ts), so the UI can be
      * honest about it instead of implying full membership. */
     partial?: boolean;
+    /** Where this snapshot's constituent list came from — a short citation,
+     * not the full audit trail (see each universes/*.ts file's own doc
+     * comment, and docs/market-data.md / docs/bist.md, for that). */
+    source: string;
 }
 
 function toInstruments(symbols: readonly string[]): InstrumentId[] {
@@ -40,46 +44,48 @@ const STATIC_UNIVERSES: Record<string, MarketUniverse> = {
         market: 'US',
         symbols: toInstruments(DOW_30_SYMBOLS),
         asOf: '2025-01',
+        source: 'Manually maintained (30 components, changes rarely) — see universes/dow30.ts.',
     },
     'nasdaq-100': {
         id: 'nasdaq-100',
         name: 'Nasdaq-100',
         market: 'US',
         symbols: toInstruments(NASDAQ_100_SYMBOLS),
-        asOf: '2025-01',
+        asOf: '2026-08-04',
         partial: true,
+        source: 'github.com/floyds1995/Auto-Index-Constituents-Tracker, cross-validated against official reconstitution announcements — best-effort, not fully verified as of today. See universes/nasdaq100.ts.',
     },
     'sp-500': {
         id: 'sp-500',
-        name: 'S&P 500 (curated subset)',
+        name: 'S&P 500',
         market: 'US',
         symbols: toInstruments(SP_500_SYMBOLS),
-        asOf: '2025-01',
-        partial: true,
+        asOf: '2026-09-19',
+        source: 'github.com/datasets/s-and-p-500-companies, cross-checked against an S&P Dow Jones Indices press release. See universes/sp500.ts.',
     },
     'bist-30': {
         id: 'bist-30',
         name: 'BIST 30',
         market: 'TR',
         symbols: toBistInstruments(BIST_30_SYMBOLS),
-        asOf: '2025-01',
-        partial: true,
+        asOf: '2026-09-19',
+        source: 'github.com/GamehunterKaan/fundhunter (TradingView index-membership data), cross-validated against github.com/eermis1/bist-trader (KAP-sourced). See universes/bist30.ts.',
     },
     'bist-50': {
         id: 'bist-50',
         name: 'BIST 50',
         market: 'TR',
         symbols: toBistInstruments(BIST_50_SYMBOLS),
-        asOf: '2025-01',
-        partial: true,
+        asOf: '2026-09-19',
+        source: 'Same sourcing as bist-30 — see universes/bist50.ts.',
     },
     'bist-100': {
         id: 'bist-100',
-        name: 'BIST 100 (curated subset)',
+        name: 'BIST 100',
         market: 'TR',
         symbols: toBistInstruments(BIST_100_SYMBOLS),
-        asOf: '2025-01',
-        partial: true,
+        asOf: '2026-09-19',
+        source: 'Same sourcing as bist-30 — see universes/bist100.ts.',
     },
 };
 

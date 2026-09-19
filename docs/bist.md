@@ -63,22 +63,38 @@ Journal/Statistics all continue to **never sum TRY and USD together** —
 this was already true before BIST existed (multi-currency was designed in
 from Milestone 10) and BIST is simply the first real user of it.
 
-## BIST universes — static, versioned, explicitly labeled
+## BIST universes — static, versioned, verified complete
 
 `lib/market-data/universes/bist30.ts` / `bist50.ts` / `bist100.ts`:
 
-- `BIST_30_SYMBOLS` (30 symbols).
-- `BIST_50_ADDITIONAL_SYMBOLS` (20 symbols on top of BIST 30 — BIST 50 is
-  the union).
-- `BIST_100_ADDITIONAL_SYMBOLS` (46 symbols on top of BIST 50 — BIST 100
-  is the union).
+- `BIST_30_SYMBOLS` — exactly 30 symbols.
+- `BIST_50_ADDITIONAL_SYMBOLS` — exactly 20 symbols on top of BIST 30
+  (BIST 50 is the union: 50 total).
+- `BIST_100_ADDITIONAL_SYMBOLS` — exactly 50 symbols on top of BIST 50
+  (BIST 100 is the union: 100 total).
 
-Every list is a **best-effort static snapshot**, dated (`asOf: '2025-01'`
-in `lib/market-data/universe.ts`), and marked `partial: true` — the exact
-same honesty convention already used for the Nasdaq-100/S&P-500 curated
-subsets (`docs/market-data.md`). These are **never scraped or re-fetched
-live**; updating them for real index-membership changes is a manual,
-periodic review, same as the US lists.
+| Universe | Expected count | Actual count | Snapshot date | Completeness |
+| --- | --- | --- | --- | --- |
+| BIST 30 | 30 | 30 | 2026-09-19 | ✅ Complete, verified |
+| BIST 50 | 50 | 50 | 2026-09-19 | ✅ Complete, verified |
+| BIST 100 | 100 | 100 | 2026-09-19 | ✅ Complete, verified |
+
+All three are cross-validated across two independent sources —
+`github.com/GamehunterKaan/fundhunter` (index-tier data traced to
+TradingView's index-membership scanner) and
+`github.com/eermis1/bist-trader` (sourced via `pykap`, which wraps KAP,
+Turkey's official Public Disclosure Platform) — which matched
+byte-for-byte on the full BIST 100 superset, plus independent news-search
+cross-checks of this quarter's specific reconstitution. `BIST_30 ⊆
+BIST_50 ⊆ BIST_100` holds exactly, verified programmatically. See each
+`universes/bist*.ts` file's own doc comment for the full sourcing detail.
+
+These are still **never scraped or re-fetched live** — this is a static,
+versioned snapshot for the 2026 Q3 index period (01.07.2026–30.09.2026).
+Borsa İstanbul reconstitutes quarterly, so this needs re-verification for
+the next period (effective ~2026-10-01), same as any static universe here
+— "verified complete" describes this snapshot's accuracy against its
+stated date, not a promise that it never needs revisiting.
 
 ## Company names — a small, honest list, not a complete database
 
@@ -132,7 +148,9 @@ evidence:
   (`symbol`/`providerSymbol`/`exchange`/`market`/`currency`/`timezone`).
 - [x] Historical daily bars fetch, validate, and store correctly for BIST
   symbols via Yahoo.
-- [x] BIST 30/50/100 exist as static, dated, `partial`-labeled universes.
+- [x] BIST 30/50/100 exist as static, dated universes — verified complete
+  (exact 30/50/100 counts, cross-validated across independent sources) as
+  of the 2026-09-19 snapshot, no longer `partial`-labeled.
 - [x] The sync engine, `/data` freshness dashboard, and provider
   diagnostics all work for `market: 'TR'`.
 - [x] Scanner, stock detail, backtest, and candidate outcome tracking all

@@ -165,15 +165,31 @@ pay for what this app actually uses.
 
 ## Universe data-quality disclosure
 
-Dow 30 is a complete, accurate static list. Nasdaq-100, S&P 500, and BIST
-50/100 are **explicitly labeled `partial: true`** curated subsets, not
-verified-complete index memberships — the UI shows this (`~` prefix on the
-symbol count) rather than implying a static list is the full, current real
-index. BIST 30 is treated as complete for the same reason Dow 30 is (a
-small, well-known, stable index), though — like every static universe
-here — it is still a manually-maintained snapshot, not a live feed, and
-needs periodic review as real membership changes. See `docs/bist.md` for
-BIST specifics.
+Audited 2026-09-19 (production-hardening pass) — per-universe status:
+
+| Universe | Expected count | Actual count | Snapshot date | Source | Complete? |
+| --- | --- | --- | --- | --- | --- |
+| Dow 30 | 30 | 30 | 2025-01 | Manually maintained | ✅ Yes |
+| S&P 500 | 500 companies (503 tickers — 3 dual-class) | 503 | 2026-09-19 | `github.com/datasets/s-and-p-500-companies` (Wikipedia mirror), cross-checked against an official S&P DJI press release | ✅ Yes |
+| BIST 30 | 30 | 30 | 2026-09-19 | See `docs/bist.md` | ✅ Yes |
+| BIST 50 | 50 | 50 | 2026-09-19 | See `docs/bist.md` | ✅ Yes |
+| BIST 100 | 100 | 100 | 2026-09-19 | See `docs/bist.md` | ✅ Yes |
+| Nasdaq-100 | ~100 (101 with dual-class) | 101 | 2026-08-04 | `github.com/floyds1995/Auto-Index-Constituents-Tracker`, cross-validated against confirmed reconstitution events | ⚠️ Best-effort — see `universes/nasdaq100.ts`'s doc comment for the specific unresolved gap (an unconfirmed replacement for a mid-2026 Nasdaq delisting, and an imminent quarterly reconstitution this research pass couldn't confirm in detail) |
+
+Five of the six static universes are now verified-complete, exact
+constituent lists (not curated approximations) — a change from this
+project's earlier state, where Nasdaq-100, S&P 500, and BIST 50/100 were
+all `partial: true` curated subsets. Only Nasdaq-100 remains `partial:
+true` today, and its doc comment says exactly why, rather than leaving a
+vague "best-effort" label unexplained. The UI still shows this
+distinction (`~` prefix on the symbol count for whatever remains
+`partial`) rather than ever implying a static list is the full, current
+real index. Every list — including the now-complete ones — is still a
+**manually-maintained snapshot, never scraped or re-fetched live**, and
+needs periodic review as real membership changes (index providers
+reconstitute quarterly or annually). See `docs/bist.md` for BIST
+specifics, and each `universes/*.ts` file's own doc comment for its exact
+sourcing and cross-validation.
 
 ### Backtest survivorship-bias warning
 

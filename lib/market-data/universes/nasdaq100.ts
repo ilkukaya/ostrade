@@ -1,30 +1,44 @@
 /**
- * Nasdaq-100 — a best-effort static snapshot of large Nasdaq-listed
- * companies, not a guaranteed-exact, up-to-the-minute membership list.
+ * Nasdaq-100 — best-effort snapshot, NOT verified complete as of today.
  *
- * The real index reconstitutes annually (each December) plus occasional
- * intra-year swaps, and this list was written from general knowledge
- * rather than fetched from an official source at build time (per the
- * deployment brief: prefer a static/versioned definition over scraping a
- * live source at runtime). Treat this as "approximately the Nasdaq-100",
- * useful for scanning, not as an authoritative membership record — see
- * docs/market-data.md for the reasoning and how to refresh it.
+ * 101 tickers (the index nominally targets 100, but multiple share classes
+ * for one company — here, Alphabet's GOOG/GOOGL — routinely push the real
+ * count slightly over 100). Underlying data snapshot dated 2026-08-04
+ * (github.com/floyds1995/Auto-Index-Constituents-Tracker, itself tracking
+ * Wikipedia's Nasdaq-100 change log), heavily cross-validated against two
+ * confirmed official reconstitution events (Dec 2025 annual, June 2026
+ * quarterly — all 22 additions/removals from those two events matched
+ * exactly), then hand-adjusted once more: Kraft Heinz (KHC) is removed
+ * here because it voluntarily delisted from Nasdaq and moved its primary
+ * listing to NYSE effective 2026-09-14.
+ *
+ * What's NOT resolved, and why this stays `partial: true`
+ * (lib/market-data/universe.ts) rather than being promoted to "complete"
+ * like BIST/S&P 500: no confirmed replacement for KHC's vacated slot, and
+ * a further quarterly rank-based reconstitution Nasdaq reportedly
+ * announced ~2026-09-11 (effective ~2026-09-21/22) couldn't be confirmed
+ * in detail — every primary source that would (nasdaq.com,
+ * ir.nasdaq.com, indexes.nasdaq.com) was unreachable during this research
+ * pass. Re-verify directly against one of those once network access
+ * allows, ideally after 2026-09-22 when this quarter's changes will have
+ * settled and been reported.
+ *
+ * A couple of entries are unusual and were individually confirmed rather
+ * than assumed correct on sight: `SPCX` (Space Exploration Technologies
+ * Corp / SpaceX) and `FER` (Ferrovial SE, not Ferguson plc).
  */
 export const NASDAQ_100_SYMBOLS = [
-    // Mega-cap
-    'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'NVDA', 'META', 'TSLA', 'AVGO', 'COST',
-    // Semiconductors / hardware
-    'AMD', 'QCOM', 'TXN', 'AMAT', 'ADI', 'LRCX', 'KLAC', 'MU', 'INTC', 'MRVL', 'NXPI', 'ON', 'MCHP',
-    // Software / internet
-    'NFLX', 'CSCO', 'INTU', 'ADP', 'CTAS', 'PAYX', 'PANW', 'CRWD', 'FTNT', 'WDAY', 'TEAM', 'SNPS', 'CDNS', 'ANSS',
-    // Consumer internet / travel
-    'ZS', 'DASH', 'ABNB', 'PYPL', 'BKNG', 'MELI', 'PDD', 'EA', 'TTWO',
-    // Industrials / distribution
-    'ADSK', 'CSGP', 'FAST', 'ODFL', 'PCAR', 'ORLY', 'CTSH', 'VRSK', 'CPRT',
-    // Consumer staples / utilities
-    'EXC', 'XEL', 'AEP', 'CEG', 'KDP', 'KHC', 'MDLZ', 'MNST', 'PEP', 'SBUX', 'CMCSA', 'CHTR', 'TMUS',
-    // Healthcare / biotech
-    'MAR', 'REGN', 'VRTX', 'GILD', 'AMGN', 'ISRG', 'BIIB', 'IDXX', 'ILMN', 'DXCM', 'MRNA', 'LULU', 'ROST', 'EBAY', 'WBD',
-    // Materials / energy / other large caps
-    'LIN', 'BKR', 'FANG', 'CTVA', 'GEHC', 'CDW', 'GFS', 'ARM', 'AXON', 'DOC', 'ZM', 'MSTR', 'APP', 'PLTR', 'HON',
+    'AAPL', 'ABNB', 'ADBE', 'ADI', 'ADP', 'ADSK', 'AEP', 'ALAB',
+    'ALNY', 'AMAT', 'AMD', 'AMGN', 'AMZN', 'APP', 'ARM', 'ASML',
+    'AVGO', 'AXON', 'BKNG', 'BKR', 'CCEP', 'CDNS', 'CEG', 'CMCSA',
+    'COST', 'CPRT', 'CRWD', 'CRWV', 'CSCO', 'CSX', 'CTAS', 'DASH',
+    'DDOG', 'DXCM', 'EXC', 'FANG', 'FAST', 'FER', 'FTNT', 'GEHC',
+    'GILD', 'GOOG', 'GOOGL', 'HON', 'HONA', 'IDXX', 'INTC', 'INTU',
+    'ISRG', 'KDP', 'KLAC', 'LIN', 'LITE', 'LRCX', 'MAR', 'MCHP',
+    'MDLZ', 'MELI', 'META', 'MNST', 'MPWR', 'MRVL', 'MSFT', 'MSTR',
+    'MU', 'NBIS', 'NFLX', 'NVDA', 'NXPI', 'ODFL', 'ORLY', 'PANW',
+    'PAYX', 'PCAR', 'PDD', 'PEP', 'PLTR', 'PYPL', 'QCOM', 'REGN',
+    'RKLB', 'ROP', 'ROST', 'SBUX', 'SHOP', 'SNDK', 'SNPS', 'SPCX',
+    'STX', 'TER', 'TMUS', 'TRI', 'TSLA', 'TTWO', 'TXN', 'VRTX',
+    'WBD', 'WDAY', 'WDC', 'WMT', 'XEL',
 ] as const;

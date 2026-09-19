@@ -1,17 +1,19 @@
 /**
- * BIST 100 — additional constituents beyond BIST 50 (see bist30.ts for the
- * "best-effort static snapshot" caveat, which applies at least as strongly
- * here: this list is a curated ~96-symbol subset assembled from well-known
- * BIST-listed large/mid caps, explicitly NOT a verified, exact 100-symbol
- * index feed. Combine with BIST_30_SYMBOLS + BIST_50_ADDITIONAL_SYMBOLS for
- * the full universe, defined in lib/market-data/universe.ts — see
- * docs/bist.md for the disclosure this drives in the universe picker UI.
+ * BIST 100 (index XU100) — additional constituents beyond BIST 50.
+ *
+ * Same verified 2026 Q3 snapshot and sourcing as bist30.ts (see there for
+ * the full cross-validation write-up) — this is now a verified, exact
+ * 50-symbol addition (BIST_30_SYMBOLS + BIST_50_ADDITIONAL_SYMBOLS + this
+ * = exactly 100), not the earlier best-effort ~96-symbol curated subset.
+ * Combined with BIST_30_SYMBOLS + BIST_50_ADDITIONAL_SYMBOLS this is the
+ * full universe (lib/market-data/universe.ts).
  */
 export const BIST_100_ADDITIONAL_SYMBOLS = [
-    'ALFAS', 'ALKIM', 'AKSA', 'AKSEN', 'AVPGY', 'AYDEM', 'BAGFS', 'BERA',
-    'BIOEN', 'BRISA', 'BUCIM', 'CANTE', 'CWENE', 'DEVA', 'EGEEN', 'ENJSA',
-    'EUPWR', 'EUREN', 'GLYHO', 'GOLTS', 'HALKB', 'ISMEN', 'KARSN', 'KLSER',
-    'KORDS', 'KRDMA', 'MPARK', 'NTGAZ', 'NUGYO', 'PENTA', 'PSGYO', 'SELEC',
-    'SKBNK', 'SMRTG', 'SNGYO', 'TABGD', 'TKFEN', 'TKNSA', 'TMSN', 'TUKAS',
-    'ULKER', 'VESBE', 'VESTL', 'YATAS', 'YEOTK', 'ZOREN',
+    'AKSA', 'ALTNY', 'ANSGR', 'ARCLK', 'BALSU', 'BERA', 'BRYAT', 'BSOKE',
+    'CVKMD', 'CWENE', 'DAPGM', 'DOAS', 'DOHOL', 'ENERY', 'ENJSA', 'ESEN',
+    'EUPWR', 'EUREN', 'FENER', 'GENIL', 'GESAN', 'GRSEL', 'GRTHO', 'GSRAY',
+    'IEYHO', 'ISMEN', 'IZENR', 'KLRHO', 'MAGEN', 'MAVI', 'MPARK', 'OBAMS',
+    'ODAS', 'ODINE', 'OTKAR', 'PAHOL', 'PATEK', 'PSGYO', 'QUAGR', 'RALYH',
+    'REEDR', 'SARKY', 'SKBNK', 'SOKM', 'TKFEN', 'TRENJ', 'TSKB', 'TUKAS',
+    'VESTL', 'ZOREN',
 ] as const;
