@@ -116,11 +116,20 @@ describe('yahooProvider.getHistoricalPrices', () => {
         vi.stubGlobal('fetch', fetchMock);
 
         await yahooProvider.getHistoricalPrices('THYAO', 'D');
-        expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('THYAO.IS'), expect.anything());
+        const bistUrl = String(fetchMock.mock.calls[0]?.[0] ?? '');
+        expect(bistUrl).toContain('THYAO.IS');
+        expect(bistUrl).toContain('interval=1d');
+        expect(bistUrl).toContain('period1=');
+        expect(bistUrl).toContain('period2=');
+        expect(bistUrl).not.toContain('range=max');
 
         fetchMock.mockClear();
         await yahooProvider.getHistoricalPrices('AAPL', 'D');
-        expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/AAPL?'), expect.anything());
+        const usUrl = String(fetchMock.mock.calls[0]?.[0] ?? '');
+        expect(usUrl).toContain('/AAPL?');
+        expect(usUrl).toContain('interval=1d');
+        expect(usUrl).toContain('period1=');
+        expect(usUrl).toContain('period2=');
     });
 
     it('maps HTTP 404 to a not_found error', async () => {
