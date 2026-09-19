@@ -12,7 +12,7 @@ export default function TradeStatsSection({ overall, bySetup }: { overall: Overa
     const currencies = Object.keys(overall.byCurrency);
 
     return (
-        <section className="space-y-4">
+        <section className="min-w-0 max-w-full space-y-4">
             <div>
                 <h2 className="text-lg font-semibold text-white">Trade Statistics</h2>
                 <p className="mt-1 text-xs text-gray-500">
@@ -57,7 +57,7 @@ export default function TradeStatsSection({ overall, bySetup }: { overall: Overa
                 </p>
             </div>
 
-            <div className="overflow-x-auto rounded-xl border border-gray-800">
+            <div className="ostrade-scroll-x rounded-xl border border-gray-800">
                 <table className="w-full min-w-[600px] text-left text-sm">
                     <thead className="bg-gray-900/60 text-xs uppercase tracking-wide text-gray-500">
                         <tr>
