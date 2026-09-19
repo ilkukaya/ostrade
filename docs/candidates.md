@@ -76,10 +76,36 @@ Current price (a live quote, fetched separately per distinct symbol on the
 list) is shown for context only — it is never written into the candidate
 document itself.
 
+## Automatic outcome tracking
+
+`checkCandidateOutcomes` (`lib/inngest/functions.ts`, cron `0 22 * * *` —
+once daily, after the trading day's bars are expected to be available)
+walks every `ACTIVE` candidate forward through the daily bars since its
+`signalAt` using `lib/candidates/outcome.ts::evaluateCandidateOutcome`, a
+pure, fully unit-tested function (`__tests__/candidates/outcome.test.ts`)
+that:
+
+- Only ever looks at bars strictly *after* the signal date — the signal
+  bar itself is excluded, since the earliest a position could have been
+  entered is the next bar.
+- Detects `TARGET_1_HIT` / `TARGET_2_HIT` / `STOP_HIT` from the first bar
+  whose high/low range resolves one of them.
+- Marks a bar that touches **both** the stop and Target 1 as `AMBIGUOUS`
+  — daily OHLC cannot reveal which happened first intrabar, and this is
+  never silently resolved in the favorable direction.
+- Does **not** re-check the original stop once Target 1 has been hit —
+  modeling a trailing stop or partial exit is out of scope; once Target 1
+  is confirmed, that is the recorded outcome even if price later falls
+  back through the original stop.
+- Marks a candidate `EXPIRED` (default: 60 trading days with no
+  resolution) rather than leaving it `ACTIVE` forever.
+
+Only long/bullish setups are modeled (targets above the stop) — the only
+implemented setup (BREAKOUT) is always long. This will need a `direction`
+parameter once a short-biased setup exists.
+
 ## Not yet built
 
-- Automatic outcome tracking (detecting target/stop hits from bars since
-  the signal) — tracked as its own milestone in `PROGRESS.md`; until it
-  exists, every candidate stays `ACTIVE` unless manually cancelled.
 - Score-bucket / setup statistics over saved candidates (`docs/statistics.md`
-  — depends on there being real outcome data first).
+  — depends on there being real outcome data first, which now accumulates
+  daily via the job above).

@@ -105,9 +105,15 @@ Status legend: ✅ done · 🟡 partial · ⬜ not started
   range), and a clear "Signal Snapshot" (frozen) vs. "View Current
   Analysis" (live, links to the stock page) distinction per row
 - ✅ Manual cancel action for active candidates
-- ⬜ **Automatic outcome tracking** (detecting target/stop hits from bars
-  since the signal) — not built yet; every candidate stays `ACTIVE` until
-  either this exists or it's manually cancelled
+- ✅ **Automatic outcome tracking**: daily Inngest cron
+  (`checkCandidateOutcomes`, `lib/inngest/functions.ts`) walks every
+  `ACTIVE` candidate forward through the daily bars since its signal via
+  the pure, fully unit-tested `lib/candidates/outcome.ts::evaluateCandidateOutcome`
+  — detects `TARGET_1_HIT`/`TARGET_2_HIT`/`STOP_HIT`, marks a same-bar
+  stop-and-target touch `AMBIGUOUS` rather than guessing which happened
+  first, never re-checks the original stop once Target 1 is hit (no
+  trailing-stop modeling), and marks 60-day-unresolved candidates
+  `EXPIRED`. Long-only (targets above stop) — see `docs/candidates.md`.
 - ⬜ Trade Journal — a separate, still-unbuilt concept; see `docs/journal.md`
 
 ## Milestone 7 — Statistics (Phase 11) — ⬜ Not implemented yet
