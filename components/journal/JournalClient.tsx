@@ -69,7 +69,7 @@ export default function JournalClient({ trades }: { trades: SerializedTrade[] })
     }
 
     return (
-        <div className="space-y-4">
+        <div className="min-w-0 max-w-full space-y-4">
             {summary ? (
                 <p className="text-xs text-gray-500">
                     Closed trades: n={summary.n} · Win rate {summary.winRate.toFixed(1)}%
@@ -115,7 +115,7 @@ export default function JournalClient({ trades }: { trades: SerializedTrade[] })
                 </span>
             </div>
 
-            <div className="overflow-x-auto rounded-xl border border-gray-800">
+            <div className="ostrade-scroll-x rounded-xl border border-gray-800">
                 <table className="w-full min-w-[1100px] text-left text-sm">
                     <thead className="bg-gray-900/60 text-xs uppercase tracking-wide text-gray-500">
                         <tr>
