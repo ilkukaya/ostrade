@@ -76,7 +76,7 @@ Note: OpenStock is community-built and not a brokerage. Market data may be delay
 
 ## ✨ Introduction <a name="introduction"></a>
 
-OpenStock is a modern stock market app powered by Next.js (App Router), shadcn/ui and Tailwind CSS, Better Auth for authentication, MongoDB for persistence, Finnhub for market data, and TradingView widgets for charts and market views.
+OpenStock (OSTRADE) is a Daily EOD Swing Trading Research Terminal powered by Next.js (App Router), shadcn/ui and Tailwind CSS, Better Auth for authentication, MongoDB for persistence, Stooq/Yahoo Finance for core market data (no API key required — see [`docs/market-data.md`](docs/market-data.md); Finnhub is optional enrichment), and TradingView widgets for charts and market views. BIST (Borsa İstanbul) is supported alongside US markets — see [`docs/bist.md`](docs/bist.md).
 
 ## 🌍 Open Dev Society Manifesto <a name="manifesto"></a>
 
@@ -107,7 +107,8 @@ Core
 Auth & Data
 - Better Auth (email/password) with MongoDB adapter
 - MongoDB + Mongoose
-- Finnhub API for symbols, profiles, and market news
+- Stooq + Yahoo Finance for core EOD market data (no API key needed);
+  Finnhub API (optional) for richer live quotes, financials, and news
 - TradingView embeddable widgets
 
 Automation & Comms
@@ -124,7 +125,7 @@ Language composition
     - Email/password auth with Better Auth + MongoDB adapter
     - Protected routes enforced via Next.js middleware
 - Global search and Command + K palette
-    - Fast stock search backed by Finnhub
+    - Local search over every tracked universe (US + BIST), needing no API key, enriched with Finnhub's live search when configured
     - Popular stocks when idle; debounced querying
 - Watchlist
     - Per-user watchlist stored in MongoDB (unique symbol per user)
@@ -135,7 +136,7 @@ Language composition
 - **Swing Analysis** (new — see [`docs/swing-engine.md`](docs/swing-engine.md))
     - Deterministic technical-indicator engine (SMA/EMA/RSI/MACD/Stochastic/Bollinger/ATR/volume/momentum/volatility)
     - Transparent, rule-by-rule swing score (0–100) with a documented trade plan (entry/stop/targets) — never a black-box number
-    - Falls back to free Stooq daily bars when Finnhub's free tier doesn't include historical candles
+    - Reads a local, normalized daily-bar database (Stooq/Yahoo, synced via `/data`) — see [`docs/daily-data-engine.md`](docs/daily-data-engine.md)
 - Market overview
     - Heatmap, quotes, and top stories (TradingView widgets)
 - Personalized onboarding
@@ -156,8 +157,8 @@ Language composition
 Prerequisites
 - Node.js 20+ and pnpm or npm
 - MongoDB connection string (MongoDB Atlas or local via Docker Compose)
-- Finnhub API key (free tier supported; historical daily bars fall back to Stooq — see [`docs/market-data.md`](docs/market-data.md))
-- Everything else (email, AI, Adanos, Inngest) is optional — see [`.env.example`](.env.example)
+- Core market data (Stooq/Yahoo) needs no API key at all
+- Everything else (Finnhub, email, AI, Adanos, Inngest) is optional — see [`.env.example`](.env.example) and [`docs/market-data.md`](docs/market-data.md)
 
 Clone and install
 ```bash
@@ -277,12 +278,11 @@ BETTER_AUTH_URL=http://localhost:3000
 # account exists — see docs/architecture.md)
 AUTHORIZED_EMAIL=
 
-# Finnhub (required) — server-side only, do NOT prefix with NEXT_PUBLIC_
-FINNHUB_API_KEY=your_finnhub_key
-# FINNHUB_BASE_URL=https://finnhub.io/api/v1
-
 # Everything below is optional — the app boots and every core feature
-# works without it. See .env.example for what each one enables.
+# (search, scanner, stock analysis, backtesting, candidate tracking) works
+# without it. Core market data (Stooq/Yahoo) needs no key at all. See
+# .env.example for what each one enables.
+# FINNHUB_API_KEY / FINNHUB_BASE_URL        (richer live quotes/financials/news)
 # ADANOS_API_KEY / ADANOS_API_BASE_URL     (sentiment card)
 # AI_PROVIDER / GEMINI_API_KEY / etc.       (welcome-email copy only)
 # INNGEST_SIGNING_KEY                       (background jobs, once deployed)
@@ -349,10 +349,10 @@ public/assets/images/   # logos and screenshots
 
 ## 📡 Data & Integrations <a name="data--integrations"></a>
 
-- Market data provider abstraction (see [`docs/market-data.md`](docs/market-data.md))
-    - Nothing outside `lib/market-data/` talks to Finnhub directly.
-    - Finnhub: stock search, quotes, company profiles, financials, and market news. Set `FINNHUB_API_KEY` (server-side only — no `NEXT_PUBLIC_` prefix) and optionally `FINNHUB_BASE_URL`.
-    - Historical daily bars: Finnhub's candle endpoint first, falling back to Stooq's free daily-bar CSV when Finnhub reports a plan restriction — real data or a clear "unavailable" result, never fabricated.
+- Market data provider abstraction (see [`docs/market-data.md`](docs/market-data.md), [`docs/daily-data-engine.md`](docs/daily-data-engine.md), [`docs/bist.md`](docs/bist.md))
+    - Nothing outside `lib/market-data/` talks to a specific provider (Stooq/Yahoo/Finnhub) directly, or constructs a provider-specific symbol.
+    - Historical daily EOD bars: Stooq (US primary) → Yahoo Finance (US fallback, BIST primary) — no API key for either. Synced into a local, permanent MongoDB database (`/data` admin page); every analysis feature (scanner, stock page, backtester, candidate tracking) reads that local database, not a live provider, on every request.
+    - Finnhub (optional): richer live quotes/company profiles (falls back to Yahoo when unset), plus financials/news/search enrichment (search also works fully locally with no key at all). Set `FINNHUB_API_KEY` (server-side only — no `NEXT_PUBLIC_` prefix) and optionally `FINNHUB_BASE_URL` if you want it.
     - Free tiers may return delayed quotes; respect rate limits and terms.
 
 - Swing Analysis Engine (see [`docs/swing-engine.md`](docs/swing-engine.md))
@@ -383,6 +383,13 @@ public/assets/images/   # logos and screenshots
 
 
 ## 🌍 Market Support <a name="market-support"></a>
+
+This section describes TradingView/Finnhub's general chart and quote
+coverage. OSTRADE's own local EOD swing-analysis engine (scanner, stock
+analysis, backtesting, candidate tracking) currently covers **US markets
+and BIST (Borsa İstanbul)** specifically — see
+[`docs/market-data.md`](docs/market-data.md) and
+[`docs/bist.md`](docs/bist.md).
 
 OpenStock supports **30+ international stock exchanges** including NSE, LSE, TSX, and more. However, please be aware of important limitations based on our data providers.
 

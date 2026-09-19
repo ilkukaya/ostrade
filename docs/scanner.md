@@ -7,9 +7,12 @@ deterministic rule engine as the stock detail page — see
 ## Architecture
 
 ```
-Market Universe (lib/market-data/universe.ts)
+Market Universe (lib/market-data/universe.ts — US and BIST)
       ↓
-Historical bars (lib/market-data/service.ts — Finnhub, Stooq fallback)
+Historical bars — LOCAL-FIRST: historicalDataRepository.ts::getBarsOrFetch
+      (reads the local MarketBar database; a market-data provider is only
+      called once, ever, for a symbol nobody has seeded before — see
+      docs/daily-data-engine.md)
       ↓
 analyzeSwingSetupDetailed (lib/swing/analyze.ts — the SAME function the
       stock detail page calls; the scanner never reimplements indicators
@@ -22,6 +25,11 @@ Persisted incrementally in a ScannerRun (database/models/scannerRun.model.ts)
       ↓
 Client polls lib/actions/scanner.actions.ts::scanUniverse until complete
 ```
+
+Each symbol resolves its full instrument metadata via
+`resolveInstrument()` before reading bars, so a BIST universe scan carries
+correct market/currency/exchange context the same way a US scan does (see
+`docs/bist.md`) — the scanner itself has zero BIST-specific code.
 
 ## Why it's batched instead of one big request
 
@@ -50,10 +58,11 @@ client-side against the already-fetched result set.
 
 ## Market universes
 
-Three static universes (Dow 30, Nasdaq-100, S&P 500 curated subset — see
-`docs/market-data.md` for why the latter two are explicitly approximate)
-plus a dynamic "Custom Watchlist" universe resolved per-user from the
-existing `Watchlist` collection. See `lib/market-data/universe.ts`.
+Six static universes — Dow 30, Nasdaq-100, S&P 500 (US) and BIST 30/50/100
+(TR) — see `docs/market-data.md`/`docs/bist.md` for why several of these
+are explicitly labeled approximate/partial — plus a dynamic "Custom
+Watchlist" universe resolved per-user from the existing `Watchlist`
+collection. See `lib/market-data/universe.ts`.
 
 ## Explainability
 
@@ -71,11 +80,18 @@ rather than reusing the (possibly hours-old, cached) scan result.
 
 ## Known limitations
 
-- A symbol whose historical data can't be fetched (Finnhub plan
-  restriction with no Stooq coverage, e.g. a non-US symbol) is recorded in
-  `skipped` with a reason, never silently dropped or faked.
-- The Nasdaq-100 and S&P 500 lists are static, best-effort snapshots (see
-  `docs/market-data.md`) — they will drift from real index membership over
-  time and need periodic manual review.
+- A symbol with no usable local bars (never synced, and the one-time
+  just-in-time provider fallback also failed) is recorded in `skipped`
+  with a reason, never silently dropped or faked. Visiting `/data` first
+  to sync a universe avoids relying on that per-symbol fallback for a
+  scan's entire result set.
+- The Nasdaq-100, S&P 500, and BIST 50/100 lists are static, best-effort
+  snapshots (see `docs/market-data.md`/`docs/bist.md`) — they will drift
+  from real index membership over time and need periodic manual review.
 - Only the BREAKOUT setup exists today (see `docs/swing-engine.md`), so
   every scanner result is evaluated against that one setup.
+- Requests only the latest ~300 bars per symbol (enough for the longest
+  indicator lookback, the 200-day SMA) rather than a symbol's entire
+  stored history — see `docs/daily-data-engine.md`'s "SAME DATA + SAME
+  STRATEGY = SAME RESULT" note for why this doesn't change the result
+  versus reading full history.

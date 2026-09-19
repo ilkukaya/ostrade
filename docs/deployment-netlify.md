@@ -16,12 +16,17 @@ cost table). This walks through getting the private terminal live.
 4. Copy the connection string (`mongodb+srv://...`) — this is your
    `MONGODB_URI`.
 
-## 2. Finnhub (free tier)
+## 2. Market data — no signup required
 
-Sign up at [finnhub.io](https://finnhub.io) and copy the API key — this is
-your `FINNHUB_API_KEY`. See `docs/market-data.md` for what the free tier
-does and doesn't cover (historical daily bars are not guaranteed on the
-free plan; a fallback is already wired up).
+Core historical daily bars (US via Stooq/Yahoo, BIST via Yahoo — see
+`docs/market-data.md`) need **no API key and no account at all**. There is
+nothing to set up in this step for core functionality to work.
+
+Optionally, sign up at [finnhub.io](https://finnhub.io) (free tier) and
+set `FINNHUB_API_KEY` for richer live quotes, company financials, and
+news — this is pure enrichment (`docs/market-data.md`'s "Finnhub is
+optional" section); every core swing-analysis feature works identically
+without it.
 
 ## 3. Netlify project
 
@@ -37,8 +42,8 @@ free plan; a fallback is already wired up).
    - `BETTER_AUTH_URL` (your Netlify site's URL, e.g.
      `https://your-site.netlify.app` — update this if you later attach a
      custom domain)
-   - `FINNHUB_API_KEY`
    - `NODE_ENV=production`
+   - `FINNHUB_API_KEY` is **not** in this list — it's optional (step 2).
 4. **Set `AUTHORIZED_EMAIL` before your first deploy if at all possible**
    (see `docs/architecture.md` / `lib/private-access.ts`). If you deploy
    without it first, set it right after creating your own account —
@@ -46,6 +51,17 @@ free plan; a fallback is already wired up).
    sign-up page itself only stops being served once your account exists
    and this variable is set.
 5. Deploy.
+6. **First-run data seed**: sign in, visit `/data`, and click "Update All"
+   for each market you care about (US and/or BIST) — this populates the
+   local `MarketBar` database from Stooq/Yahoo (see
+   `docs/daily-data-engine.md`). The scanner, stock analysis, and
+   backtester all read this local database first and only fall back to a
+   live provider fetch, once, for a symbol nobody has ever looked at — a
+   fresh deploy with an empty database is slower on first use of any given
+   symbol until this step runs. Then visit `/data` again (or wait for a
+   future automatic job — see `docs/daily-data-engine.md`) and use the
+   "Generate Daily Analysis" action so `/review` and `/review/weekly` have
+   something to show.
 
 ## 4. Optional integrations
 
@@ -91,3 +107,16 @@ next connection attempt — a paused cluster has to be manually resumed from
 the Atlas dashboard (or its API) before the app can reach it again. If the
 app suddenly can't connect after a long gap, check the cluster's status in
 Atlas first.
+
+## Storage growth on the free tier (512MB, M0)
+
+`MarketBar` (daily OHLCV) and `DailyAnalysisSnapshot` (per-session scoring
+history) are the only two collections designed to grow **permanently** —
+no TTL, by design (see `docs/daily-data-engine.md`). Both store normalized
+values only, no duplicate raw provider payloads, so growth is slow: a
+single US+BIST universe's daily bars for several years is a small fraction
+of an M0 cluster's 512MB. This is worth knowing about, not worth
+pre-optimizing — if it ever becomes a real constraint, the fix is pruning
+or archiving old rows deliberately, not silently TTL-expiring data other
+features (the Weekly Review's multi-session history, a backtest's date
+range) depend on.

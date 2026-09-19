@@ -1,35 +1,62 @@
 # Market Data
 
+See also: `docs/daily-data-engine.md` (the local-first data architecture,
+the sync engine, `DailyAnalysisSnapshot`) and `docs/bist.md` (BIST
+specifics). This document covers the provider layer itself: what each
+provider is used for, how routing/fallback works, error handling, and the
+zero-cost-first principle.
+
 ## Why this layer exists
 
-Nothing outside `lib/market-data/` should ever import Finnhub (or any other
-provider) directly. Everything else — UI, server actions, the swing engine
-— depends on `lib/market-data/service.ts` and the types in
-`lib/market-data/types.ts`. That's what lets a symbol like `THYAO` route to
-a future BIST provider someday without touching the UI or the analysis
-engine at all (see "Future providers" below).
+Nothing outside `lib/market-data/` should ever import a specific provider
+(Finnhub/Stooq/Yahoo) directly, or construct a provider-specific symbol
+(like Yahoo's `.IS` suffix) itself. Everything else — UI, server actions,
+the swing engine, the sync engine — depends only on
+`lib/market-data/service.ts`, the `MarketDataProvider` interface, and
+`InstrumentId` (`lib/market-data/types.ts`). That's what let BIST support
+get added later without touching the UI or the analysis engine at all, and
+is what would let a future provider replace any of these three without a
+wider rewrite.
 
 ```
 lib/market-data/
-  types.ts               Quote, HistoricalBar, CompanyProfile, NewsItem,
-                          MarketDataProvider interface, MarketDataError
+  types.ts                Quote, HistoricalBar, CompanyProfile, NewsItem,
+                          SearchResult, InstrumentId, MarketDataProvider
+                          interface, MarketDataError
+  instruments/
+    bist.ts               BIST symbol membership + InstrumentId + verified
+                          company names (see docs/bist.md)
+    resolve.ts             resolveInstrument() — the ONE symbol -> full
+                          InstrumentId translation point every layer uses
+  universes/
+    dow30.ts, nasdaq100.ts, sp500.ts, bist30.ts, bist50.ts, bist100.ts
+                          static, dated, versioned symbol lists
+  universe.ts              MarketUniverse registry + Custom Watchlist
+  marketCalendar.ts        timezone-correct bar dates, session-complete
+                          checks (see docs/daily-data-engine.md)
+  validateBar.ts           bar validation/sanitization before storage
+  localSearch.ts           local symbol/name search (see below)
+  historicalDataRepository.ts
+                          local-first MarketBar reads/writes (see
+                          docs/daily-data-engine.md)
+  sync/                    the market-data sync engine (see
+                          docs/daily-data-engine.md)
   providers/
-    finnhub.ts            the only provider today
-    stooq.ts               free historical-bar fallback (see below) — not a
-                          full MarketDataProvider, just a helper Finnhub's
-                          provider calls internally
-  service.ts               getQuote/getHistoricalPrices/getCompanyProfile/
-                          getFinancials/getNews/searchSymbols — routes a
-                          symbol to its provider (currently always Finnhub)
-                          and orchestrates things a single provider
-                          shouldn't have to know about (e.g. news across a
-                          whole watchlist, batched quotes for a table)
+    finnhub.ts             optional enrichment: quotes/company-profile
+                          (US), financials, news, live search
+    stooq.ts                free, no-key US daily-bar CSV provider
+    yahoo.ts                free, no-key EOD provider — primary for BIST,
+                          fallback for US
+  service.ts               routes a symbol to the right provider chain
+                          for each capability, and orchestrates things a
+                          single provider shouldn't have to know about
+                          (news across a whole watchlist, batched quotes)
 ```
 
 `lib/actions/finnhub.actions.ts` is a thin Server Action adapter over
 `service.ts`, kept only so existing call sites (search command, header,
-watchlist chips) didn't have to change shape during the refactor. New code
-should import `lib/market-data/service.ts` directly.
+watchlist chips) didn't have to change shape when providers were added.
+New code should import `lib/market-data/service.ts` directly.
 
 ## Error handling
 
@@ -53,105 +80,117 @@ failure. `MarketDataError.kind` is one of:
 `describeMarketDataError()` (in `types.ts`) maps each kind to a short,
 user-facing message — the UI shows that, never raw provider error text.
 
-## Historical prices: Finnhub's free-tier gap, and the Stooq fallback
+## Provider fallback chains
+
+Each *capability* has its own chain, decided once in `service.ts` — never
+duplicated or re-decided inside an individual provider file:
+
+| Capability | US | BIST/TR | On total failure |
+| --- | --- | --- | --- |
+| Historical daily bars | Stooq → Yahoo | Yahoo | last provider's error; caller falls back to whatever's already stored locally |
+| Quote | Finnhub → Yahoo | Yahoo | last provider's error |
+| Company profile | Finnhub → Yahoo | Yahoo | last provider's error |
+| Financials | Finnhub only | Yahoo (honestly `unavailable`) | Finnhub's error |
+| News | Finnhub only | Yahoo (honestly `unavailable`) | Finnhub's error |
+| Symbol search | Local universe search (always) + Finnhub (optional) | same | never fails |
+
+Each chain tries providers in order and returns the first success; if
+every provider fails, it returns the **last** provider's error (the one
+that got furthest), since that's usually the most informative failure to
+surface. Nothing here ever fabricates a bar, quote, or profile when the
+whole chain fails.
+
+### Why Stooq is primary for US, and Yahoo is the fallback everywhere
 
 Finnhub's `/stock/candle` endpoint (daily OHLC history) is gated behind a
-paid plan for most free-tier API keys. Since the entire swing-analysis
-engine, the eventual scanner, and backtesting all need real historical
-bars, this would otherwise be a hard blocker for a $0 deployment.
+paid plan for most free-tier keys, so it was dropped from the
+historical-bars chain entirely — trying it first would just waste a
+request. **Stooq** (`providers/stooq.ts`, `stooq.com/q/d/l/`) is a free,
+no-API-key daily-bar CSV endpoint used by open-source market-data tooling
+for exactly this gap, and is the primary US source. **Yahoo Finance**
+(`providers/yahoo.ts`) is an unofficial, undocumented chart endpoint (no
+key, no published contract, no uptime guarantee) that covers both US
+(fallback) and BIST (primary, and only, source — see `docs/bist.md`).
 
-`getHistoricalPrices` in `providers/finnhub.ts` handles this in order:
+Both are covered by unit tests against fixture responses
+(`__tests__/stooq.test.ts`, `__tests__/market-data/yahoo.test.ts`) so a
+real format change from either provider is caught by a failing test, not a
+silent data-quality regression — `parseStooqDailyCsv`/`toBars` (Yahoo)
+both throw a typed error rather than returning garbage on an unexpected
+shape.
 
-1. Try Finnhub's candle endpoint. If the caller does have access (a paid
-   plan, or a symbol/resolution the free tier happens to allow), this just
-   works.
-2. If Finnhub reports a plan restriction (or isn't configured for
-   candles), fall back to **Stooq** (`providers/stooq.ts`) — a free,
-   no-API-key daily-bar CSV endpoint (`stooq.com/q/d/l/`) that's been used
-   by open-source market-data tooling for exactly this gap for years.
+### Adjusted vs. unadjusted prices
 
-This is real historical data, not invented — but it's also explicitly
-best-effort:
+See `docs/daily-data-engine.md`'s "Adjusted vs. unadjusted prices" section
+for the full policy: `close` is always the raw, split-adjusted-only price
+every calculation in this app uses; `adjustedClose` is stored for
+transparency but never substituted in.
 
-- Stooq is only used as a fallback for **daily** bars; weekly/monthly
-  history still requires a Finnhub plan with candle access, and
-  `getHistoricalPrices` returns a clear `unavailable` result rather than
-  guessing when that's not available.
-- Coverage is US-listed tickers only (see `toStooqSymbol` in
-  `providers/stooq.ts`) — non-US symbols get an honest `not_found`/
-  `unavailable` result, never fabricated bars.
-- If Stooq's CSV format or endpoint ever changes, `parseStooqDailyCsv`
-  throws a `bad_response` error rather than silently returning garbage —
-  it's covered by unit tests with fixture CSVs
-  (`__tests__/stooq.test.ts`) precisely so a real format change would be
-  caught by a failing test, not a silent data-quality regression.
+## Finnhub is optional
 
-## Future providers (BIST, etc.)
+Finnhub is **enrichment only** — richer live quotes, company financials,
+and news when configured — never a hard dependency for core swing
+functionality. The app is designed, tested, and built to work fully with
+`FINNHUB_API_KEY` unset:
 
-Do not build a BIST provider speculatively — the deployment brief is
-explicit about this: don't invent a data source before a reliable free one
-is confirmed to exist. When one is:
+- **Historical bars, the entire local-first data engine, the scanner,
+  stock analysis, backtesting, and candidate outcome tracking** never
+  touch Finnhub at all — they use Stooq/Yahoo exclusively.
+- **Quotes and company profiles** prefer Finnhub when configured (closer
+  to real-time), but fall back to Yahoo automatically when it isn't —
+  for every market, not just BIST.
+- **Symbol search** (`lib/market-data/localSearch.ts`) works entirely
+  locally over every tracked static universe (symbol + verified company
+  name where known) with no API key at all; Finnhub's live search is
+  merged in as an enrichment on top when available, never a requirement.
+- **Financials and news** genuinely have no free alternative today (Yahoo
+  doesn't implement either) — these two honestly report `unavailable`
+  with `FINNHUB_API_KEY` unset, a stated, accepted limitation rather than
+  something papered over.
+- `npm run build` succeeds, and every core route renders, with zero
+  market-data credentials configured — verified as part of this project's
+  standard verification pass (see `docs/deployment-netlify.md`).
 
-1. Implement `MarketDataProvider` in `lib/market-data/providers/<name>.ts`.
-2. Teach `getProviderForSymbol()` in `service.ts` to route the relevant
-   symbols/exchanges to it (currently a single-line stub — see the comment
-   there).
-3. Nothing else changes. The UI, the swing engine, and every server action
-   already depend only on the `MarketDataProvider` interface.
+See `.env.example` for the exact required-vs-optional split.
 
-### What's already architecture-ready for BIST specifically
+## Zero-cost-first
 
-Nothing below is BIST *support* — it's the parts of the existing
-architecture that a real BIST provider would slot into without needing a
-redesign, listed so a future implementer doesn't have to rediscover this:
+This project must remain zero-budget-first. Do not introduce a Twelve
+Data paid plan, a Finnhub paid plan, a Polygon paid plan, a Tiingo paid
+plan, a Marketstack paid plan, or any paid BIST data feed without the
+owner's explicit approval. Never enable an automatic paid upgrade or
+automatic billing expansion through code. Stooq, Yahoo, and Finnhub's free
+tier are the only providers integrated, and none of them are required to
+pay for what this app actually uses.
 
-- **Currency**: `InstrumentId.currency`/`Quote.currency`/`CompanyProfile.currency`
-  (`lib/market-data/types.ts`) are already optional, provider-supplied
-  strings, never hardcoded to `USD` — a BIST provider returning `TRY`
-  requires no type change. `lib/risk/positionSizing.ts` and every R-multiple
-  calculation in `lib/trades/`, `lib/statistics/`, and `lib/backtest/` are
-  already currency-agnostic (R-multiples are dimensionless ratios); only
-  the Trade Journal's *display* formatting is currency-aware today
-  (`components/journal/JournalClient.tsx::formatMoney`) — a BIST rollout
-  would need the same per-currency treatment anywhere else raw prices are
-  displayed, which today assumes USD for formatting (`lib/utils.ts::formatPrice`)
-  even though the data layer underneath doesn't.
-- **Exchange symbol mapping**: `lib/utils.ts::FINNHUB_TO_TRADINGVIEW_EXCHANGE`
-  already maps Finnhub's `.IS` suffix to `BIST` for TradingView widget
-  embeds — a leftover from the upstream project, not something built for
-  this feature, but confirming the exchange-suffix convention this app
-  already uses is compatible.
-- **Market Universe abstraction** (`lib/market-data/universe.ts`): adding a
-  `bist-30` (or similar) entry is exactly as much work as `dow-30` was —
-  a static, versioned, explicitly-labeled symbol list (see
-  `lib/market-data/universes/dow30.ts` for the pattern). The scanner,
-  backtester, and candidate/statistics pipeline all already work against
-  any `MarketUniverse`, BIST included, with zero further changes once a
-  provider exists.
-- **Rule engine**: `lib/swing/` operates on `OhlcBar[]` and has no
-  provider- or exchange-specific logic anywhere in it.
+## Universe data-quality disclosure
 
-### Why scraping is explicitly rejected, not just deprioritized
+Dow 30 is a complete, accurate static list. Nasdaq-100, S&P 500, and BIST
+50/100 are **explicitly labeled `partial: true`** curated subsets, not
+verified-complete index memberships — the UI shows this (`~` prefix on the
+symbol count) rather than implying a static list is the full, current real
+index. BIST 30 is treated as complete for the same reason Dow 30 is (a
+small, well-known, stable index), though — like every static universe
+here — it is still a manually-maintained snapshot, not a live feed, and
+needs periodic review as real membership changes. See `docs/bist.md` for
+BIST specifics.
 
-A scraped BIST data source (screen-scraping a public website, or an
-undocumented/unauthorized endpoint) is not an acceptable substitute for a
-real provider, for the same reasons the Nasdaq-100/S&P-500 universes are
-labeled `partial: true` rather than pretending to be exact (`docs/scanner.md`):
+### Backtest survivorship-bias warning
 
-- It breaks silently and often (a page layout change, a bot-detection
-  rollout, a ToS enforcement action) with no warning to the owner, unlike
-  a documented API error (`MarketDataError`) the rest of this layer is
-  built to handle explicitly.
-- It's frequently a Terms of Service violation, which this project does
-  not do regardless of technical feasibility.
-- A backtester or live scanner silently fed corrupted/incomplete scraped
-  data is worse than one that plainly says "BIST isn't available yet" —
-  exactly the "looks credible while being wrong" failure mode
-  `docs/backtesting.md` and `docs/monte-carlo.md` both call out for their
-  own respective risks.
+Running a backtest over a historical period using **today's** static
+universe constituent list silently excludes any company that was removed
+from that index since (delisted, acquired, or dropped) — which can make
+historical performance look stronger than it would have been for someone
+actually holding the index the whole time. The `/backtest` UI shows this
+warning explicitly for every static universe (never for the per-user
+Custom Watchlist) — see `docs/backtesting.md`.
 
-A real BIST integration needs a provider with published, authorized
-API access (free or paid) and stable historical daily bars — the same bar
-this project already held Finnhub/Stooq to (see above). Until one is
-confirmed, BIST stays exactly what it is today: an architecture that's
-ready, not a feature that pretends to work.
+## BIST
+
+See `docs/bist.md` for BIST symbol mapping, the Yahoo-only provider
+chain, BIST 30/50/100 universes, currency handling, and an honest
+completion checklist. The historical "why scraping Borsa İstanbul's own
+bulletin is rejected outright" reasoning lives there too: it's a Terms of
+Service risk, it breaks silently with no typed error the rest of this
+layer knows how to handle, and a scanner/backtester silently fed corrupted
+scraped data is worse than one that plainly says data isn't available.

@@ -1,10 +1,12 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
-import { ChevronDown, ChevronRight, Loader2, RefreshCw } from 'lucide-react';
+import { ChevronDown, ChevronRight, Loader2, RefreshCw, Sparkles } from 'lucide-react';
 import { advanceSync, getFreshness, startSync } from '@/lib/actions/marketDataSync.actions';
+import { runDailySnapshotGeneration } from '@/lib/actions/dailySnapshot.actions';
 import type { MarketDataSyncProgress } from '@/lib/market-data/sync/syncService';
 import type { MarketFreshness } from '@/lib/market-data/sync/freshness';
+import type { GenerateDailySnapshotsResult } from '@/lib/analysis/dailySnapshotService';
 
 const MARKETS = [
     { id: 'US', label: 'US' },
@@ -67,6 +69,8 @@ export default function DataAdminClient({
     const [freshness, setFreshness] = useState(initialFreshness);
     const [progress, setProgress] = useState<Partial<Record<string, MarketDataSyncProgress>>>({});
     const [expandedMarket, setExpandedMarket] = useState<string | null>(null);
+    const [snapshotResults, setSnapshotResults] = useState<Partial<Record<string, GenerateDailySnapshotsResult>>>({});
+    const [snapshotLoading, setSnapshotLoading] = useState<Partial<Record<string, boolean>>>({});
     const activeRequestIds = useRef<Record<string, number>>({ US: 0, TR: 0 });
 
     const pollMarket = useCallback(async (market: string, forceRefresh: boolean) => {
@@ -97,6 +101,18 @@ export default function DataAdminClient({
     const handleUpdate = (market: string) => pollMarket(market, false);
     const handleUpdateAll = () => {
         for (const m of MARKETS) pollMarket(m.id, false);
+    };
+
+    const handleGenerateSnapshot = async (market: string) => {
+        setSnapshotLoading((s) => ({ ...s, [market]: true }));
+        try {
+            const result = await runDailySnapshotGeneration(market);
+            setSnapshotResults((r) => ({ ...r, [market]: result }));
+        } catch (error) {
+            console.error(`Daily snapshot generation failed for ${market}`, error);
+        } finally {
+            setSnapshotLoading((s) => ({ ...s, [market]: false }));
+        }
     };
 
     return (
@@ -153,9 +169,33 @@ export default function DataAdminClient({
                                 ) : null}
                             </div>
                         ) : null}
+                        <div className="flex items-center gap-2 pt-1">
+                            <button
+                                type="button"
+                                onClick={() => handleGenerateSnapshot(m.id)}
+                                disabled={snapshotLoading[m.id]}
+                                className="flex h-8 items-center gap-2 rounded-md border border-gray-700 bg-black/30 px-3 text-xs font-medium text-gray-200 hover:bg-black/50 disabled:opacity-50"
+                            >
+                                <Sparkles className={`h-3.5 w-3.5 ${snapshotLoading[m.id] ? 'animate-pulse' : ''}`} />
+                                Generate Daily Analysis
+                            </button>
+                        </div>
+                        {snapshotResults[m.id] ? (
+                            <p className="text-xs text-gray-500">
+                                {snapshotResults[m.id]!.processed} / {snapshotResults[m.id]!.totalSymbols} snapshots generated
+                                {snapshotResults[m.id]!.skipped.length > 0 ? `, ${snapshotResults[m.id]!.skipped.length} skipped` : ''}
+                            </p>
+                        ) : null}
                     </div>
                 ))}
             </div>
+
+            <p className="text-xs text-gray-600">
+                &quot;Generate Daily Analysis&quot; reuses whatever bars are already synced above to produce today&apos;s{' '}
+                <code className="text-gray-500">DailyAnalysisSnapshot</code> per symbol, feeding{' '}
+                <code className="text-gray-500">/review</code> and <code className="text-gray-500">/review/weekly</code> — run
+                it after a sync, not instead of one. See <code className="text-gray-500">docs/daily-data-engine.md</code>.
+            </p>
 
             <p className="text-xs text-gray-600">
                 A daily sync only re-fetches a symbol whose latest stored bar is already behind the expected

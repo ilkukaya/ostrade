@@ -121,15 +121,19 @@ Only long/bullish setups are modeled — the only implemented setup
 ## Batching architecture (rate-limit protection)
 
 `lib/backtest/service.ts` mirrors the scanner's batching approach
-(`docs/scanner.md`): `getHistoricalPrices` is called exactly once per
-symbol (fetching the *entire* available history in one call), and the
-entire chronological simulation then runs in memory with zero further
-network calls — so a backtest's market-data cost is identical to a
-scanner run's, one call per symbol in the universe, regardless of how many
-years the backtest covers. `BATCH_SIZE = 5` / `CONCURRENCY = 3` (smaller
-than the scanner's 10/4) because each unit of work here is a full
-multi-year in-memory simulation, not a single day's analysis — a
-conservative margin against serverless execution-time limits.
+(`docs/scanner.md`) and is **local-first** like every other feature (see
+`docs/daily-data-engine.md`): `getBarsOrFetch` reads a symbol's *entire*
+stored history from the local `MarketBar` database (unlike the scanner
+and stock page, which cap at the latest ~300 bars — a backtest genuinely
+needs the full range, since chronology and indicator warm-up both depend
+on everything before the run's start date still being present). A
+market-data provider is only ever touched once per symbol, the first time
+it's ever backtested and nothing is stored for it yet. The entire
+chronological simulation then runs in memory with zero further network or
+database calls. `BATCH_SIZE = 5` / `CONCURRENCY = 3` (smaller than the
+scanner's 10/4) because each unit of work here is a full multi-year
+in-memory simulation, not a single day's analysis — a conservative margin
+against serverless execution-time limits.
 
 Unlike `ScannerRun` (an ephemeral, TTL-expired cache), a `BacktestRun` is a
 **permanent research record** with no TTL: it exists specifically so a
@@ -149,6 +153,36 @@ and the separate `BacktestExecutionConfig` (date range, fees, slippage,
 min score, max holding days, holdout boundary). A run's results are fully
 reproducible and auditable later regardless of what the *current*
 `defaultSwingStrategyConfig` has since become.
+
+## Dataset provenance
+
+Every `BacktestRun` also stamps a `datasetProvenance`
+(`generatedAt`/`latestBarDate`/`providers`), alongside its strategy
+fingerprint (above) — the data half of "what exactly produced this
+result?" to the strategy-config half `strategyFingerprint` already
+answers. `generatedAt` is fixed at the run's creation, so two runs with
+identical config are never confused with each other even if the
+underlying `MarketBar` data changed in between; `providers` names every
+distinct source (`stooq`/`yahoo`) actually read, so a mixed-source US
+backtest is visible rather than implied to be from one provider; and
+`latestBarDate` is the newest bar date observed across every symbol
+actually processed. This is never used to invalidate or re-interpret an
+old run automatically — it exists so a human reviewing two runs side by
+side can tell whether they used the same data, not so the app can silently
+decide for them.
+
+### Survivorship-bias warning
+
+Running a backtest against a static universe (Dow 30, Nasdaq-100, S&P
+500, BIST 30/50/100 — anything except the per-user Custom Watchlist) uses
+**today's** constituent list applied across the entire historical period.
+Companies that were removed from that index since (delisted, acquired, or
+dropped) are not included, which can make the historical result look
+stronger than it would have been for someone who actually held the index
+the whole time. `components/backtest/BacktestClient.tsx` shows this
+warning whenever a completed run's universe is a static one — it's a
+statement of fact about the data, not a suggestion to distrust the numbers
+outright.
 
 ## Outputs
 
@@ -203,6 +237,11 @@ split, and treat the holdout numbers as the more honest estimate.
 - One open simulated trade per symbol at a time (a second signal while a
   trade is open is never even evaluated) — a documented simplification,
   not a pyramiding/scaling model.
+- Reads local `MarketBar` data only (see `docs/daily-data-engine.md`); a
+  backtest over a universe that's never been synced relies on each
+  symbol's one-time just-in-time provider fallback, which is slower and
+  more rate-limit-sensitive than backtesting an already-synced universe.
+  Visiting `/data` first is recommended for a large universe's first run.
 
 ## Explicitly out of scope until this exists (now resolved)
 
