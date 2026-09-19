@@ -6,7 +6,9 @@ import { getAuth } from '@/lib/better-auth/auth';
 import { connectToDatabase } from '@/database/mongoose';
 import { Trade } from '@/database/models/trade.model';
 import { Candidate } from '@/database/models/candidate.model';
-import { getHistoricalPrices, getQuote } from '@/lib/market-data/service';
+import { getQuote } from '@/lib/market-data/service';
+import { getBarsOrFetch } from '@/lib/market-data/historicalDataRepository';
+import { resolveInstrument } from '@/lib/market-data/instruments/resolve';
 import { calculateExcursion } from '@/lib/trades/excursion';
 import { computeTradeFinancials } from '@/lib/trades/pnl';
 import type { TradeDirection, TradeStatus, SerializedTrade } from '@/lib/trades/types';
@@ -21,15 +23,17 @@ async function requireUserId(): Promise<string> {
 }
 
 /** Bars from entryDate (inclusive) through `through` (inclusive), for the
- * MFE/MAE calculation — see lib/trades/excursion.ts. Returns [] rather than
- * throwing if market data is unavailable, since excursion tracking is a
- * secondary enrichment, not the reason the trade is being logged. */
-async function fetchBarsSinceEntry(symbol: string, entryDate: Date, through: Date) {
-    const barsResult = await getHistoricalPrices(symbol, 'D');
-    if (!barsResult.ok) return [];
+ * MFE/MAE calculation — see lib/trades/excursion.ts. Reads local-first
+ * (see docs/daily-data-engine.md) rather than calling a market-data
+ * provider directly, same as every other bar-consuming feature. Returns
+ * [] rather than throwing if market data is unavailable, since excursion
+ * tracking is a secondary enrichment, not the reason the trade is being
+ * logged. */
+export async function fetchBarsSinceEntry(symbol: string, entryDate: Date, through: Date) {
+    const instrument = resolveInstrument(symbol);
     const entryStr = entryDate.toISOString().slice(0, 10);
     const throughStr = through.toISOString().slice(0, 10);
-    return barsResult.data.filter((b) => b.time >= entryStr && b.time <= throughStr);
+    return getBarsOrFetch(instrument, { from: entryStr, to: throughStr });
 }
 
 export interface CreateTradeParams {
