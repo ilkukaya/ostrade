@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
@@ -38,6 +38,19 @@ export default function LogTradeForm() {
     const [currencyTouched, setCurrencyTouched] = useState(false);
     const [notes, setNotes] = useState('');
     const [submitting, setSubmitting] = useState(false);
+
+    useEffect(() => {
+        if (!symbol || currencyTouched) return;
+
+        let cancelled = false;
+        void lookupInstrumentCurrency(symbol.toUpperCase()).then((detected) => {
+            if (!cancelled && detected) setCurrency(detected);
+        });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [symbol, currencyTouched]);
 
     const handleSymbolBlur = async () => {
         if (!symbol || currencyTouched) return;
