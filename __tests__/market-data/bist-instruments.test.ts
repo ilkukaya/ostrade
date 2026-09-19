@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { buildBistInstrument, getBistCompanyName } from '@/lib/market-data/instruments/bist';
+import { BIST_30_SYMBOLS } from '@/lib/market-data/universes/bist30';
+import { BIST_50_ADDITIONAL_SYMBOLS } from '@/lib/market-data/universes/bist50';
+import { BIST_100_ADDITIONAL_SYMBOLS } from '@/lib/market-data/universes/bist100';
 
 describe('buildBistInstrument', () => {
     it('appends .IS as the provider symbol without touching the business symbol', () => {
@@ -28,5 +31,11 @@ describe('getBistCompanyName', () => {
 
     it('returns undefined rather than a fabricated name for an unknown symbol', () => {
         expect(getBistCompanyName('ZZZZZ')).toBeUndefined();
+    });
+
+    it('has a verified name for every symbol in the BIST 30/50/100 universes', () => {
+        const all = [...BIST_30_SYMBOLS, ...BIST_50_ADDITIONAL_SYMBOLS, ...BIST_100_ADDITIONAL_SYMBOLS];
+        const missing = all.filter((symbol) => !getBistCompanyName(symbol));
+        expect(missing).toEqual([]);
     });
 });

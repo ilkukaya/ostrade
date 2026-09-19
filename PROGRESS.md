@@ -345,6 +345,12 @@ picture; this entry is the changelog-style summary.
   time. The 2 remaining findings (`nodemailer`, a `postcss` copy bundled
   in `next`) need a breaking major upgrade with no in-range fix and are
   assessed as low-reachability — see `docs/security-audit.md`.
+- ✅ BIST company names: `BIST_NAMES` (`lib/market-data/instruments/bist.ts`)
+  now covers all 100 tracked BIST 30/50/100 constituents (was 36),
+  cross-validated across two independent sources per symbol rather than
+  guessed from general knowledge. No sector/industry data added — company
+  names only, per this project's "never fabricate" policy. See
+  `docs/bist.md`'s "Company names" section.
 - ✅ Market universe completeness audit: BIST 30/50/100 and S&P 500 are
   now verified-complete, exact constituent lists (previously curated
   approximations marked `partial: true`) — cross-validated across

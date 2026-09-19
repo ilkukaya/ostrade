@@ -2,8 +2,9 @@
 
 ## Status
 
-BIST historical daily bars, quotes, company names (partial), universes
-(BIST 30/50/100), scanner/stock-detail/backtest/candidate-tracking, and
+BIST historical daily bars, quotes, company names (complete, all 100
+tracked constituents), universes (BIST 30/50/100, verified complete),
+scanner/stock-detail/backtest/candidate-tracking, and
 currency handling are implemented and covered by tests. See "Completion
 criteria" below for exactly what that does and doesn't include — having a
 `.IS` symbol mapping is not, by itself, "BIST support."
@@ -96,15 +97,20 @@ the next period (effective ~2026-10-01), same as any static universe here
 — "verified complete" describes this snapshot's accuracy against its
 stated date, not a promise that it never needs revisiting.
 
-## Company names — a small, honest list, not a complete database
+## Company names — verified for every tracked symbol
 
-`BIST_NAMES` in `instruments/bist.ts` currently covers ~36 well-known BIST
-constituents with manually-verified names (Türk Hava Yolları, Aselsan,
-Garanti BBVA, and so on). A symbol not on this list is displayed and
-searched **by its raw ticker**, never a guessed or fabricated name — this
-is a deliberate, stated limitation, not an oversight. Extending this list
-is safe, low-risk, incremental work (add a verified name, nothing else
-changes) whenever it's worth doing.
+`BIST_NAMES` in `instruments/bist.ts` now covers all 100 BIST 30/50/100
+constituents with verified names, cross-checked across two independent
+sources (a TradingView-scanner-derived dataset and individual per-symbol
+confirmation against Turkish financial data sites) rather than trusted
+from a single source or general knowledge. A symbol outside the tracked
+universes (or one this cross-check couldn't verify, should that ever
+happen after a future universe update) is still displayed and searched
+**by its raw ticker**, never a guessed or fabricated name — that fallback
+stays in place even though it currently has nothing to fall back to.
+Sector/industry classification is deliberately NOT included — this table
+is company names only, never fabricated fields the source data can't
+actually back up.
 
 The same limitation applies symmetrically to Finnhub: Finnhub has **no
 BIST coverage at all**, so `getCompanyProfile`/`getQuote`/`getFinancials`/
@@ -163,8 +169,8 @@ evidence:
   name.
 - [x] Currency is never silently assumed `USD` for a BIST instrument
   anywhere in Portfolio/Journal/Statistics.
-- [ ] Complete, verified company names for every BIST 100 constituent —
-  intentionally not done; see "Company names" above.
+- [x] Complete, verified company names for every BIST 100 constituent —
+  see "Company names" above.
 - [ ] A second, independent historical-data source for BIST (redundancy
   against Yahoo's endpoint changing) — not started; no free alternative
   has been identified yet (see `docs/market-data.md`).
