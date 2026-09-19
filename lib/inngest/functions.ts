@@ -2,24 +2,13 @@ import { inngest } from "@/lib/inngest/client";
 import { PERSONALIZED_WELCOME_EMAIL_PROMPT } from "@/lib/inngest/prompts";
 import { sendWelcomeEmail } from "@/lib/nodemailer";
 import { callAIProviderWithFallback } from "@/lib/ai-provider";
-import { createConcurrencyLimiter } from "@/lib/concurrencyLimiter";
-import { evaluateCandidateOutcome } from "@/lib/candidates/outcome";
-import { calculateExcursion } from "@/lib/trades/excursion";
+import type { ActiveCandidateRecord } from "@/lib/candidates/updateOutcomes";
 
 type AlertRecord = {
     _id: unknown;
     symbol: string;
     condition: 'ABOVE' | 'BELOW';
     targetPrice: number;
-};
-
-type CandidateRecord = {
-    _id: unknown;
-    symbol: string;
-    signalAt: string | Date;
-    price: number;
-    stopLevel?: number;
-    targets?: number[];
 };
 
 export const sendSignUpEmail = inngest.createFunction(
@@ -164,11 +153,18 @@ export const checkStockAlerts = inngest.createFunction(
 /**
  * Walks every ACTIVE candidate forward through the daily bars since its
  * signal to see whether its target(s) or stop have since been hit — see
+ * lib/candidates/updateOutcomes.ts for the local-first update logic,
  * lib/candidates/outcome.ts for the (deterministic, no-look-ahead)
- * detection logic and docs/candidates.md for the lifecycle it writes.
+ * detection it uses, and docs/candidates.md for the lifecycle it writes.
  * Runs once daily, after daily bars for the session are expected to be
  * available — checking more often than that has no effect, since nothing
  * about a completed trading day's outcome changes intraday.
+ *
+ * Cron ordering (see docs/daily-data-engine.md): this is meant to run
+ * AFTER that day's market-data sync and daily-analysis-snapshot generation
+ * (once those exist as scheduled jobs — today, market-data sync is
+ * manual-only via /data, and there is no automatic snapshot job yet), so it
+ * always reads the same day's freshly-synced bars rather than yesterday's.
  */
 export const checkCandidateOutcomes = inngest.createFunction(
     { id: 'check-candidate-outcomes' },
@@ -187,57 +183,8 @@ export const checkCandidateOutcomes = inngest.createFunction(
         }
 
         const result = await step.run('evaluate-and-update-outcomes', async () => {
-            const { connectToDatabase } = await import("@/database/mongoose");
-            const { Candidate } = await import("@/database/models/candidate.model");
-            const { getHistoricalPrices } = await import("@/lib/market-data/service");
-
-            await connectToDatabase();
-
-            const limit = createConcurrencyLimiter(4);
-            let updated = 0;
-            let failed = 0;
-
-            await Promise.all(
-                (activeCandidates as CandidateRecord[]).map((candidate) =>
-                    limit(async () => {
-                        try {
-                            const barsResult = await getHistoricalPrices(candidate.symbol, 'D');
-                            if (!barsResult.ok) return;
-
-                            const signalDateStr = new Date(candidate.signalAt).toISOString().slice(0, 10);
-                            const barsAfterSignal = barsResult.data.filter((b) => b.time > signalDateStr);
-
-                            const outcome = evaluateCandidateOutcome({
-                                stopLevel: candidate.stopLevel,
-                                targets: candidate.targets,
-                                barsAfterSignal,
-                            });
-
-                            if (outcome.status !== 'ACTIVE') {
-                                // Same bars already fetched for the outcome check — MFE/MAE is a
-                                // free byproduct, computed once at resolution and never updated
-                                // again (see docs/candidates.md, docs/statistics.md). Every
-                                // implemented setup is long-only.
-                                const excursion = calculateExcursion({ direction: 'LONG', entryPrice: candidate.price, bars: barsAfterSignal });
-                                await Candidate.findByIdAndUpdate(candidate._id, {
-                                    $set: {
-                                        ...outcome,
-                                        maxFavorableExcursion: excursion.maxFavorableExcursion,
-                                        maxAdverseExcursion: excursion.maxAdverseExcursion,
-                                    },
-                                });
-                                updated++;
-                                console.log(`📈 Candidate ${candidate.symbol} (${candidate._id}) resolved: ${outcome.status}`);
-                            }
-                        } catch (error) {
-                            failed++;
-                            console.error(`Failed to evaluate outcome for candidate ${candidate._id} (${candidate.symbol})`, error);
-                        }
-                    }),
-                ),
-            );
-
-            return { updated, failed };
+            const { updateActiveCandidateOutcomes } = await import("@/lib/candidates/updateOutcomes");
+            return updateActiveCandidateOutcomes(activeCandidates as ActiveCandidateRecord[]);
         });
 
         return {
