@@ -143,7 +143,7 @@
 
 @layer utilities {
     .container {
-        @apply mx-auto max-w-screen-2xl px-4 md:px-6 lg:px-8;
+        @apply mx-auto w-full min-w-0 max-w-screen-2xl px-4 md:px-6 lg:px-8;
     }
     .yellow-btn {
         @apply h-12 cursor-pointer bg-gradient-to-b from-teal-400 to-teal-500 hover:from-teal-500 hover:to-teal-400 text-gray-800 font-medium text-base rounded-lg shadow-lg disabled:opacity-50;
@@ -158,7 +158,7 @@
         @apply z-50 w-full min-h-[70px] border-b border-border bg-background/95 backdrop-blur-xl;
     }
     .header-wrapper {
-        @apply flex justify-between items-center gap-4 px-4 md:px-6 py-3 text-muted-foreground;
+        @apply flex min-w-0 max-w-full items-center justify-between gap-3 px-4 py-3 text-muted-foreground md:px-6;
     }
     .auth-layout {
         @apply flex min-h-screen flex-col justify-between lg:flex-row bg-background relative overflow-hidden;
@@ -532,4 +532,21 @@ html:not(.dark) textarea {
 .dark select,
 .dark textarea {
     color-scheme: dark;
+}
+
+
+/* Keep the application shell inside the viewport. Wide research tables must
+   scroll inside their own cards instead of widening the whole document. */
+html,
+body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+.ostrade-scroll-x {
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-gutter: stable;
 }
