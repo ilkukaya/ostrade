@@ -108,10 +108,11 @@ export const getChangeColorClass = (changePercent?: number) => {
     return changePercent > 0 ? 'text-green-500' : 'text-red-500';
 };
 
-export const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-US', {
+export const formatPrice = (price: number, currency: string = 'USD') => {
+    const locale = currency === 'TRY' ? 'tr-TR' : 'en-US';
+    return new Intl.NumberFormat(locale, {
         style: 'currency',
-        currency: 'USD',
+        currency,
         minimumFractionDigits: 2,
     }).format(price);
 };
