@@ -1,114 +1,41 @@
 import Link from "next/link";
-import Image from "next/image";
-import OpenDevSocietyBranding from "./OpenDevSocietyBranding";
+import BrandWordmark from "@/components/BrandWordmark";
 
 const Footer = () => {
     return (
-        <footer className="bg-gray-900 text-white border-t border-gray-800">
-            <div className="container mx-auto px-4 py-12">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {/* Brand Section */}
+        <footer className="border-t border-border bg-card/60 text-foreground">
+            <div className="container mx-auto px-4 py-10">
+                <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
                     <div className="col-span-1 md:col-span-2">
-                        <Link href="/" className="flex items-center gap-2 mb-4">
-                            <Image
-                                src="/assets/images/logo.png"
-                                alt="OpenStock"
-                                width={150}
-                                height={38}
-                                className="brightness-0 invert"
-                            />
-                        </Link>
-                        <p className="text-gray-400 mb-6 max-w-md">
-                            OpenStock is an open-source alternative to expensive market platforms. Track real-time prices, set personalized alerts, and explore detailed company insights — built openly, for everyone, forever free.
+                        <BrandWordmark />
+                        <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground">
+                            OSTRADE is a private swing-trading research terminal for daily market review,
+                            explainable technical setups, backtesting, candidate tracking and risk analysis.
                         </p>
-                        <div className="mb-8">
-                            <Link href="/about" className="text-teal-400 hover:text-teal-300 font-medium inline-flex items-center gap-1 group">
-                                Learn about our mission
-                                <span className="group-hover:translate-x-1 transition-transform">→</span>
-                            </Link>
-                        </div>
-                        <div className="flex space-x-6">
-                            <Link
-                                href="https://github.com/Open-Dev-Society/OpenStock"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-gray-400 hover:text-white transition-colors duration-200 relative group"
-                            >
-                                <span className="relative">
-                                    GitHub
-                                    <span className="absolute left-0 bottom-0 w-0 h-0.5 bg-white transition-all duration-300 group-hover:w-full"></span>
-                                </span>
-                            </Link>
-                            <Link
-                                href="https://www.linkedin.com/company/opendevsociety-in/"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-gray-400 hover:text-blue-400 transition-colors duration-200 relative group"
-                            >
-                                <span className="relative">
-                                    LinkedIn
-                                    <span className="absolute left-0 bottom-0 w-0 h-0.5 bg-blue-400 transition-all duration-300 group-hover:w-full"></span>
-                                </span>
-                            </Link>
-                            <Link
-                                href="https://discord.gg/JkJ8kfxgxB"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-gray-400 hover:text-blue-600 transition-colors duration-200 relative group"
-                            >
-                                <span className="relative">
-                                    Discord
-                                    <span className="absolute left-0 bottom-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
-                                </span>
-                            </Link>
-                        </div>
+                        <p className="mt-3 max-w-xl text-xs leading-relaxed text-muted-foreground/80">
+                            Research output only. Market data and model outputs can be incomplete, delayed or wrong;
+                            verify important decisions independently.
+                        </p>
                     </div>
 
-                    {/* Resources */}
                     <div>
-                        <h3 className="text-lg font-semibold mb-4">Resources</h3>
-                        <ul className="space-y-2">
+                        <h3 className="mb-4 text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">Resources</h3>
+                        <ul className="space-y-2 text-sm">
+                            <li><Link href="/api-docs" className="footer-link">Architecture</Link></li>
+                            <li><Link href="/help" className="footer-link">Help</Link></li>
+                            <li><Link href="/terms" className="footer-link">Terms</Link></li>
                             <li>
-                                <Link href="/api-docs" className="text-gray-400 hover:text-white transition-colors duration-200 relative group">
-                                    <span className="relative">
-                                        API Documentation
-                                        <span className="absolute left-0 bottom-0 w-0 h-0.5 bg-white transition-all duration-300 group-hover:w-full"></span>
-                                    </span>
-                                </Link>
-                            </li>
-                            <li>
-                                <Link href="/help" className="text-gray-400 hover:text-white transition-colors duration-200 relative group">
-                                    <span className="relative">
-                                        Help Center
-                                        <span className="absolute left-0 bottom-0 w-0 h-0.5 bg-white transition-all duration-300 group-hover:w-full"></span>
-                                    </span>
-                                </Link>
-                            </li>
-                            <li>
-                                <Link href="/terms" className="text-gray-400 hover:text-white transition-colors duration-200 relative group">
-                                    <span className="relative">
-                                        Terms of Service
-                                        <span className="absolute left-0 bottom-0 w-0 h-0.5 bg-white transition-all duration-300 group-hover:w-full"></span>
-                                    </span>
+                                <Link href="https://github.com/ilkukaya/ostrade" target="_blank" rel="noopener noreferrer" className="footer-link">
+                                    Source repository
                                 </Link>
                             </li>
                         </ul>
                     </div>
                 </div>
 
-                {/* Divider */}
-                <div className="border-t border-gray-800 mt-8 pt-8">
-                    <div className="flex flex-col md:flex-row justify-between items-center">
-                        {/* Copyright */}
-                        <div className="text-gray-400 text-sm mb-4 md:mb-0">
-                            © {new Date().getFullYear()} Open Dev Society. All rights reserved.
-                        </div>
-
-                        {/* Open Dev Society Branding */}
-                        <div className="flex items-center space-x-2">
-                            <OpenDevSocietyBranding />
-                        </div>
-                    </div>
+                <div className="mt-8 flex flex-col gap-3 border-t border-border pt-6 text-xs text-muted-foreground md:flex-row md:items-center md:justify-between">
+                    <span>© {new Date().getFullYear()} OSTRADE.</span>
+                    <span>Open-source license notices remain available in the source repository.</span>
                 </div>
             </div>
         </footer>
