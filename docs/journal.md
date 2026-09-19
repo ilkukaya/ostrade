@@ -107,8 +107,8 @@ well-defined unit of risk.
   logged trade, and an expandable row per trade showing stop/targets,
   MFE/MAE, notes, and (for an OPEN trade) the "Close Trade" mini-form and
   "Refresh MFE/MAE". A closed-trade summary line (`n = ...`, win rate,
-  average R) links to `/statistics` for the full breakdown once that
-  milestone exists.
+  average R) links to `/statistics` for the full breakdown — see
+  `docs/statistics.md`.
 - **`/journal/new`** — the manual entry form, with the position-size
   calculator embedded so sizing happens as part of logging, not a separate
   step. Reachable standalone, or pre-filled from a candidate via "Log Trade

@@ -45,6 +45,9 @@ export interface SerializedCandidate {
     closedAt?: string;
     outcomeNotes?: string;
 
+    maxFavorableExcursion?: number;
+    maxAdverseExcursion?: number;
+
     createdAt: string;
 }
 

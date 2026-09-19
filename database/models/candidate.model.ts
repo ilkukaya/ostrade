@@ -74,6 +74,16 @@ export interface CandidateDocument extends Document {
     closedAt?: Date;
     outcomeNotes?: string;
 
+    /** MFE/MAE (lib/trades/excursion.ts — reused as-is, long-only since
+     * every implemented setup is long) computed once, at the same moment
+     * the outcome job resolves this candidate, over the same bars it
+     * already fetched to determine the outcome (signal-exclusive through
+     * the resolution date) — never recomputed afterward, and never
+     * populated for a candidate that hasn't resolved yet (see
+     * docs/candidates.md and docs/statistics.md). */
+    maxFavorableExcursion?: number;
+    maxAdverseExcursion?: number;
+
     createdAt: Date;
 }
 
@@ -136,6 +146,9 @@ const CandidateSchema = new Schema<CandidateDocument>({
     stopHitAt: { type: Date },
     closedAt: { type: Date },
     outcomeNotes: { type: String },
+
+    maxFavorableExcursion: { type: Number },
+    maxAdverseExcursion: { type: Number },
 
     createdAt: { type: Date, required: true, default: Date.now },
 });

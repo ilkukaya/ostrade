@@ -104,8 +104,16 @@ Only long/bullish setups are modeled (targets above the stop) — the only
 implemented setup (BREAKOUT) is always long. This will need a `direction`
 parameter once a short-biased setup exists.
 
-## Not yet built
+At the same moment a candidate resolves, the job also computes and stores
+`maxFavorableExcursion`/`maxAdverseExcursion` (`lib/trades/excursion.ts` —
+the same function the Trade Journal uses) over the identical bars already
+fetched for the outcome check, at zero extra market-data cost. This is
+computed exactly once, never updated again, and never populated for a
+candidate that's still `ACTIVE` — see `docs/statistics.md`.
 
-- Score-bucket / setup statistics over saved candidates (`docs/statistics.md`
-  — depends on there being real outcome data first, which now accumulates
-  daily via the job above).
+## Statistics
+
+Score-bucket and setup statistics over saved candidates now exist at
+`/statistics` — see `docs/statistics.md`, which documents how a candidate's
+*theoretical* realized R (if traded exactly as planned) is computed and why
+it's kept distinct from a Trade Journal entry's actual realized R-multiple.

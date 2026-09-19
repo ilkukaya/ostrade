@@ -4,6 +4,7 @@ import { sendWelcomeEmail } from "@/lib/nodemailer";
 import { callAIProviderWithFallback } from "@/lib/ai-provider";
 import { createConcurrencyLimiter } from "@/lib/concurrencyLimiter";
 import { evaluateCandidateOutcome } from "@/lib/candidates/outcome";
+import { calculateExcursion } from "@/lib/trades/excursion";
 
 type AlertRecord = {
     _id: unknown;
@@ -16,6 +17,7 @@ type CandidateRecord = {
     _id: unknown;
     symbol: string;
     signalAt: string | Date;
+    price: number;
     stopLevel?: number;
     targets?: number[];
 };
@@ -177,7 +179,7 @@ export const checkCandidateOutcomes = inngest.createFunction(
             const { Candidate } = await import("@/database/models/candidate.model");
 
             await connectToDatabase();
-            return await Candidate.find({ status: 'ACTIVE' }, { symbol: 1, signalAt: 1, stopLevel: 1, targets: 1 }).lean();
+            return await Candidate.find({ status: 'ACTIVE' }, { symbol: 1, signalAt: 1, price: 1, stopLevel: 1, targets: 1 }).lean();
         });
 
         if (!activeCandidates || activeCandidates.length === 0) {
@@ -212,7 +214,18 @@ export const checkCandidateOutcomes = inngest.createFunction(
                             });
 
                             if (outcome.status !== 'ACTIVE') {
-                                await Candidate.findByIdAndUpdate(candidate._id, { $set: outcome });
+                                // Same bars already fetched for the outcome check — MFE/MAE is a
+                                // free byproduct, computed once at resolution and never updated
+                                // again (see docs/candidates.md, docs/statistics.md). Every
+                                // implemented setup is long-only.
+                                const excursion = calculateExcursion({ direction: 'LONG', entryPrice: candidate.price, bars: barsAfterSignal });
+                                await Candidate.findByIdAndUpdate(candidate._id, {
+                                    $set: {
+                                        ...outcome,
+                                        maxFavorableExcursion: excursion.maxFavorableExcursion,
+                                        maxAdverseExcursion: excursion.maxAdverseExcursion,
+                                    },
+                                });
                                 updated++;
                                 console.log(`📈 Candidate ${candidate.symbol} (${candidate._id}) resolved: ${outcome.status}`);
                             }

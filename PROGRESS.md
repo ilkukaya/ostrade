@@ -133,14 +133,27 @@ Status legend: ✅ done · 🟡 partial · ⬜ not started
     Candidate) — correcting a mistake means delete-and-relog
   - See `docs/journal.md`
 
-## Milestone 7 — Statistics (Phase 11) — ⬜ Not implemented yet
+## Milestone 7 — Statistics (Phase 11)
 
-Depends on Milestone 6 existing first (there's no candidate/trade data to
-aggregate yet). Candidate outcome data now accumulates daily; trade data
-accumulates as the owner logs and closes trades. Needed: win rate /
-expectancy / profit factor by setup, score bucket, and market regime,
-always alongside sample size (`n = ...`), per the "never hide small
-samples" principle in the deployment brief.
+- ✅ `/statistics` — candidate and trade statistics kept in separate
+  sections, never blended (`docs/statistics.md`)
+- ✅ Candidate side (`lib/statistics/candidateStats.ts`): score-bucket table
+  (configurable buckets, default 60–64…90+) over **resolved** candidates
+  only (ACTIVE/CANCELLED excluded from every rate) — target/stop/
+  ambiguous/expired rates, median *theoretical* realized R, average
+  planned R:R, average MFE/MAE, always with its own `n =`. Makes no
+  assumption that a higher score performs better; that's what the table is
+  for finding out.
+- ✅ Candidate MFE/MAE: added to the Candidate model, computed once at
+  resolution by the existing outcome-tracking job (reuses the same bars it
+  already fetches — zero extra market-data cost)
+- ✅ Trade side (`lib/statistics/tradeStats.ts`): win rate / avg R / median
+  R over closed trades, P/L and profit factor **broken out per currency**
+  (never summed across currencies), breakdown by setup type
+- ⬜ UI control for custom score-bucket boundaries (the function already
+  accepts them; not yet exposed as a page control)
+- ⬜ Market-regime breakdowns — deferred until backtesting defines what a
+  "regime" means, rather than inventing a second definition here first
 
 ## Milestone 8 — Backtesting (Phase 12) — ⬜ Not implemented yet
 
