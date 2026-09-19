@@ -10,16 +10,24 @@ import { listTrades } from "@/lib/actions/trade.actions";
 import { computeOverallCandidateStats } from "@/lib/statistics/candidateStats";
 import { computeOverallTradeStats } from "@/lib/statistics/tradeStats";
 import ResearchSummary, { QuickLinks } from "@/components/dashboard/ResearchSummary";
+import ResearchPulse from "@/components/dashboard/ResearchPulse";
+import { getDashboardResearchPulse, getWatchlistChangeSummary } from "@/lib/actions/review.actions";
 
 const Home = async () => {
     const scriptUrl = `https://s3.tradingview.com/external-embedding/embed-widget-`;
 
-    const [candidates, trades] = await Promise.all([listCandidates(), listTrades()]);
+    const [candidates, trades, researchPulse, watchlistChanges] = await Promise.all([
+        listCandidates(),
+        listTrades(),
+        getDashboardResearchPulse(),
+        getWatchlistChangeSummary(),
+    ]);
     const candidateStats = computeOverallCandidateStats(candidates);
     const tradeStats = computeOverallTradeStats(trades);
 
     return (
         <div className="flex min-h-screen home-wrapper">
+            <ResearchPulse pulse={researchPulse} watchlistChanges={watchlistChanges} />
             <ResearchSummary
                 activeCandidateCount={candidateStats.activeCount}
                 openTradeCount={tradeStats.openCount}
