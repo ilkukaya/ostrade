@@ -1,92 +1,127 @@
 # Trade Journal
 
-**Status: not implemented yet.** Design sketch for `PROGRESS.md`
-Milestone 6/13. See `docs/candidates.md` for the separate, already-
-implemented Candidate system — a trade is not the same thing as a
-candidate, and the two must stay distinct collections (see the deployment
-brief and `docs/candidates.md`'s opening section for why).
+**Status: implemented.** Route: `/journal` (list) and `/journal/new` (log a
+trade). See `docs/candidates.md` for the separate Candidate system — a
+trade is explicitly **not** the same thing as a candidate; the two stay
+distinct collections rather than conflating "was it traded" into a signal
+snapshot (see the deployment brief).
 
 ## What a trade is
 
-Something the owner actually executed — manually entered, no broker
-connection or execution. Optionally linked back to the `Candidate` that
-led to it (`candidateId`), but a trade can also be logged standalone.
+Something the owner actually executed — always manually entered, with no
+broker connection or execution, ever. A trade can optionally link back to
+the `Candidate` that led to it (`candidateId`, `database/models/trade.model.ts`),
+copying that candidate's `setupType`/`strategyId`/`strategyVersion`/`signalDate`
+at creation time so the trade's own record of "what kind of setup this was"
+never changes even if the candidate is later cancelled — but a trade can
+also be logged completely standalone, with no candidate at all.
 
-## Suggested schema
+Unlike a Candidate, a trade is **not immutable** — it's the owner's personal
+bookkeeping, not a reproducible research signal, so mistakes can be deleted
+outright (`deleteTrade`) rather than requiring a correction workflow.
+
+## Lifecycle
 
 ```
-Trade
-  userId
-  candidateId?          (optional link back to the originating candidate)
-  symbol, market, direction ('LONG' | 'SHORT')
-  setupType, strategyId, strategyVersion
-
-  signalDate?            (when the setup was first identified, if known)
-  entryDate, entryPrice
-  positionSize
-  stopLevel, target1, target2
-
-  exitDate?, exitPrice?
-  fees?
-
-  grossPnl?, netPnl?     (computed from entry/exit/size/fees — decide at
-                          implementation time whether to store or derive
-                          on read; probably store, since fees and exit
-                          price won't change after the fact)
-  rMultiple?             ((exitPrice - entryPrice) / (entryPrice - stopLevel),
-                          sign-adjusted for direction)
-
-  maxFavorableExcursion?  (MFE — see below)
-  maxAdverseExcursion?    (MAE — see below)
-
-  status: 'OPEN' | 'WIN' | 'LOSS' | 'BREAKEVEN' | 'CLOSED'
-  notes
-  createdAt
+OPEN  →  WIN | LOSS | BREAKEVEN     (via "Close Trade" on the journal page)
 ```
+
+There is no separate generic `CLOSED` status distinct from
+WIN/LOSS/BREAKEVEN — once an exit is recorded, `netPnl`'s sign always
+resolves to exactly one of those three (`lib/trades/pnl.ts::computeTradeFinancials`),
+so a fourth "closed but undetermined" state would be redundant. Closing is
+one-way: to fix a mistake on a closed trade, delete it and re-log it rather
+than re-closing.
 
 ## Position sizing (the Risk Engine)
 
-Before a trade is logged, the owner needs to know how many shares/units a
-given risk tolerance implies. Pure, deterministic, currency-aware inputs:
+`lib/risk/positionSizing.ts::calculatePositionSize` — pure arithmetic, no
+market-data or database dependency, embedded directly in the "Log Trade"
+form (`components/risk/PositionSizeCalculator.tsx`) so the owner can size a
+position before committing to the trade:
 
 ```
 Inputs:  Account Equity, Risk Per Trade %, Entry Price, Stop Price
-Outputs: Risk Budget       = Equity × Risk%
+Outputs: Risk Budget       = Equity × (Risk% / 100)
          Risk Per Share    = |Entry − Stop|
          Maximum Shares    = floor(Risk Budget / Risk Per Share)
          Position Value    = Maximum Shares × Entry Price
          Portfolio Exposure = Position Value / Equity
 ```
 
-This is pure arithmetic with no market-data dependency — implement it as a
-standalone pure function (e.g. `lib/risk/positionSizing.ts`) with the same
-"deterministic, unit-tested with fixtures" standard as `lib/technical/`.
-Never hardcode USD — the deployment brief is explicit that currency must
-come from instrument metadata (`InstrumentId.currency`, already part of
-`lib/market-data/types.ts`), since BIST trades will eventually be in TRY.
+Always rounds `maxShares` **down** — rounding up would silently risk more
+than the configured percentage. `maxShares: 0` is a valid, meaningful result
+(the stop is too wide, or the risk budget too small, for this account) — it
+is never reported as an error; the calculator only reports `valid: false`
+when the calculation itself is impossible (non-positive equity/risk/price,
+or a stop equal to the entry, which would divide by zero).
+
+Account equity and risk % are calculator inputs only — nothing about them
+is persisted, since this app doesn't model a brokerage account. Currency is
+never hardcoded: the calculator displays whatever currency string the trade
+form carries, sourced from `lookupInstrumentCurrency` (a best-effort quote
+lookup) or the owner's own manual override — the "USD" shown in the form by
+default is a UI starting value the owner can freely change, not a business
+rule anywhere in `lib/risk/` or `lib/trades/`.
 
 ## MFE / MAE
 
-**Maximum Favorable Excursion** and **Maximum Adverse Excursion**: the best
-and worst the trade's open price moved against the entry, measured from
-the bars between entry and exit (or entry and "now" for an open trade).
-Useful for evaluating whether stops/targets are well-placed independent of
-whether the trade actually won or lost. Needs the same OHLC-ambiguity care
-as outcome tracking (`docs/candidates.md`) — document the methodology
-(e.g. "MFE uses each bar's high for a long position, low for a short")
-rather than leaving it implicit.
+`lib/trades/excursion.ts::calculateExcursion` — **Maximum Favorable
+Excursion** and **Maximum Adverse Excursion**, computed from each daily
+bar's high/low between the entry date (inclusive — the entry already
+happened during that session) and the exit date (inclusive), or through
+the most recent available bar for a still-open trade:
 
-## What already exists to build on
+- Long: favorable = `bar.high − entryPrice`; adverse = `entryPrice − bar.low`.
+- Short: favorable = `entryPrice − bar.low`; adverse = `bar.high − entryPrice`.
+- Both are clamped at zero (never negative) — if price never moved
+  favorably/adversely, that excursion is simply 0, not a negative number.
 
-- `database/models/candidate.model.ts` is the schema pattern to follow —
-  same per-user (`userId`) conventions, same "reuse `lib/swing/types.ts`
-  types rather than re-declaring them" approach.
-- Position sizing and MFE/MAE are pure functions with no dependency on the
-  Candidate/Trade models at all — build and test them independently of the
-  journal UI, the same way `lib/technical/` was built before anything used
-  it.
+Computed automatically at trade creation and again at close (over the full
+entry-to-exit window). Unlike candidate outcome tracking, there is **no
+daily cron** keeping an open trade's MFE/MAE live — the "Refresh MFE/MAE"
+button on an open trade's row (`components/journal/JournalClient.tsx`)
+recomputes it on demand instead, which was judged the simplest robust
+option for a value that most matters at close time anyway.
 
-## Explicitly out of scope for now
+## P/L and R-multiple
+
+`lib/trades/pnl.ts::computeTradeFinancials` — computed once at close and
+stored (fees and the exit price don't change after the fact, so there's no
+reason to recompute on every read):
+
+```
+grossPnl   = (exitPrice − entryPrice) × positionSize          [LONG]
+           = (entryPrice − exitPrice) × positionSize          [SHORT]
+netPnl     = grossPnl − fees
+rMultiple  = (exitPrice − entryPrice) / |entryPrice − stopLevel|   [LONG, sign-flipped for SHORT]
+```
+
+`rMultiple` is omitted (not fabricated as some default) whenever no stop
+was recorded, or the stop equals the entry price — an R-multiple requires a
+well-defined unit of risk.
+
+## The journal pages
+
+- **`/journal`** — filters (status, symbol, date range), a table of every
+  logged trade, and an expandable row per trade showing stop/targets,
+  MFE/MAE, notes, and (for an OPEN trade) the "Close Trade" mini-form and
+  "Refresh MFE/MAE". A closed-trade summary line (`n = ...`, win rate,
+  average R) links to `/statistics` for the full breakdown once that
+  milestone exists.
+- **`/journal/new`** — the manual entry form, with the position-size
+  calculator embedded so sizing happens as part of logging, not a separate
+  step. Reachable standalone, or pre-filled from a candidate via "Log Trade
+  From This" on the candidate's expanded row (`/candidates`), which carries
+  `candidateId`/`symbol`/`stopLevel`/`target1`/`target2` across as query
+  parameters — the owner still enters their own actual entry date/price/size,
+  since that's what genuinely happened and can differ from the candidate's
+  plan.
+
+## Explicitly out of scope
 
 No broker execution, ever — this stays manual research/journal software,
-per the deployment brief.
+per the deployment brief. Free-form editing of an already-logged trade's
+core fields (beyond closing it) isn't built — delete and re-log covers
+correcting a mistake without adding a second edit pathway to keep in sync
+with the close/financials logic.

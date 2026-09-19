@@ -28,6 +28,16 @@ function formatZone(zone?: { low: number; high: number }): string {
     return `${formatPrice(zone.low)} - ${formatPrice(zone.high)}`;
 }
 
+/** Only long setups exist today (see docs/candidates.md), so this always
+ * prefills direction=LONG — will need revisiting once a short setup ships. */
+function logTradeQuery(candidate: SerializedCandidate): string {
+    const params = new URLSearchParams({ candidateId: candidate._id, symbol: candidate.symbol, direction: 'LONG' });
+    if (candidate.stopLevel !== undefined) params.set('stopLevel', String(candidate.stopLevel));
+    if (candidate.targets?.[0] !== undefined) params.set('target1', String(candidate.targets[0]));
+    if (candidate.targets?.[1] !== undefined) params.set('target2', String(candidate.targets[1]));
+    return params.toString();
+}
+
 interface Filters {
     status: 'ALL' | 'ACTIVE' | 'CLOSED';
     setupType: string;
@@ -252,9 +262,17 @@ function CandidateRow({
                                     Frozen at {new Date(candidate.signalAt).toLocaleString()} — never recalculated
                                 </span>
                             </div>
-                            <Link href={`/stocks/${candidate.symbol}`} className="flex items-center gap-1 text-xs font-medium text-teal-400 hover:underline">
-                                View Current Analysis <ExternalLink className="h-3 w-3" />
-                            </Link>
+                            <div className="flex items-center gap-4">
+                                <Link
+                                    href={`/journal/new?${logTradeQuery(candidate)}`}
+                                    className="flex items-center gap-1 text-xs font-medium text-teal-400 hover:underline"
+                                >
+                                    Log Trade From This
+                                </Link>
+                                <Link href={`/stocks/${candidate.symbol}`} className="flex items-center gap-1 text-xs font-medium text-teal-400 hover:underline">
+                                    View Current Analysis <ExternalLink className="h-3 w-3" />
+                                </Link>
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-1 gap-2 md:grid-cols-2">

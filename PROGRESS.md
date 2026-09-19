@@ -114,14 +114,33 @@ Status legend: ✅ done · 🟡 partial · ⬜ not started
   first, never re-checks the original stop once Target 1 is hit (no
   trailing-stop modeling), and marks 60-day-unresolved candidates
   `EXPIRED`. Long-only (targets above stop) — see `docs/candidates.md`.
-- ⬜ Trade Journal — a separate, still-unbuilt concept; see `docs/journal.md`
+- ✅ **Trade Journal** (`database/models/trade.model.ts`, `/journal`,
+  `/journal/new`) — a separate collection from Candidate, per above:
+  - Manual entry only, no broker execution; optionally linked to a
+    Candidate via `candidateId` (copies its setupType/strategy/signalDate
+    at creation, not live-joined)
+  - `lib/risk/positionSizing.ts`: pure, currency-agnostic position sizing
+    (Risk Budget/Risk Per Share/Maximum Shares/Position Value/Portfolio
+    Exposure), embedded in the log-trade form as
+    `components/risk/PositionSizeCalculator.tsx`
+  - `lib/trades/excursion.ts`: MFE/MAE from daily bars, computed at
+    creation, refreshed at close or on demand for an open trade (no daily
+    cron, unlike candidate outcome tracking — see `docs/journal.md`)
+  - `lib/trades/pnl.ts`: grossPnl/netPnl/R-multiple, computed once at close
+    and stored; `status` (`OPEN`/`WIN`/`LOSS`/`BREAKEVEN`) derived purely
+    from netPnl's sign
+  - Trades are editable/deletable by the owner (not immutable like a
+    Candidate) — correcting a mistake means delete-and-relog
+  - See `docs/journal.md`
 
 ## Milestone 7 — Statistics (Phase 11) — ⬜ Not implemented yet
 
 Depends on Milestone 6 existing first (there's no candidate/trade data to
-aggregate yet). Needed: win rate / expectancy / profit factor by setup,
-score bucket, and market regime, always alongside sample size (`n = ...`),
-per the "never hide small samples" principle in the deployment brief.
+aggregate yet). Candidate outcome data now accumulates daily; trade data
+accumulates as the owner logs and closes trades. Needed: win rate /
+expectancy / profit factor by setup, score bucket, and market regime,
+always alongside sample size (`n = ...`), per the "never hide small
+samples" principle in the deployment brief.
 
 ## Milestone 8 — Backtesting (Phase 12) — ⬜ Not implemented yet
 
