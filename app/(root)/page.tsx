@@ -5,12 +5,28 @@ import {
     MARKET_OVERVIEW_WIDGET_CONFIG,
     TOP_STORIES_WIDGET_CONFIG
 } from "@/lib/constants";
+import { listCandidates } from "@/lib/actions/candidate.actions";
+import { listTrades } from "@/lib/actions/trade.actions";
+import { computeOverallCandidateStats } from "@/lib/statistics/candidateStats";
+import { computeOverallTradeStats } from "@/lib/statistics/tradeStats";
+import ResearchSummary, { QuickLinks } from "@/components/dashboard/ResearchSummary";
 
-const Home = () => {
+const Home = async () => {
     const scriptUrl = `https://s3.tradingview.com/external-embedding/embed-widget-`;
+
+    const [candidates, trades] = await Promise.all([listCandidates(), listTrades()]);
+    const candidateStats = computeOverallCandidateStats(candidates);
+    const tradeStats = computeOverallTradeStats(trades);
 
     return (
         <div className="flex min-h-screen home-wrapper">
+            <ResearchSummary
+                activeCandidateCount={candidateStats.activeCount}
+                openTradeCount={tradeStats.openCount}
+                closedTradeCount={tradeStats.closedCount}
+                closedTradeWinRate={tradeStats.winRate}
+            />
+            <QuickLinks />
             <section className="grid w-full gap-8 home-section">
                 <div className="md:col-span-1 xl:col-span-1">
                     <TradingViewWidget
@@ -47,16 +63,6 @@ const Home = () => {
                 </div>
 
             </section>
-            <div className="w-full flex flex-col items-center justify-center mt-8 gap-4">
-                <h2 className="text-xl font-semibold text-gray-200">Upvote us on Peerlist 🚀</h2>
-                <a href="https://peerlist.io/ravixalgorithm/project/openstock" target="_blank" rel="noreferrer">
-                    <img
-                        src="https://peerlist.io/api/v1/projects/embed/PRJH8OED7MBL9MGB9HRMKAKLM66KNN?showUpvote=true&theme=light"
-                        alt="OpenStock"
-                        style={{ width: "auto", height: "72px" }}
-                    />
-                </a>
-            </div>
         </div>
     )
 }

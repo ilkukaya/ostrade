@@ -206,10 +206,34 @@ Status legend: ✅ done · 🟡 partial · ⬜ not started
   a separate "Scenario Simulation" of possible future *prices* — if ever
   added, must never be labeled "Prediction"; see `docs/monte-carlo.md`
 
-## Milestone 10 — Portfolio analytics, BIST (Phase 14–15) — ⬜ Not implemented yet
+## Milestone 10 — Portfolio analytics, BIST (Phase 14–15)
 
-Explicitly deprioritized until the above are real and evidence-backed, per
-the deployment brief's own priority order.
+- ✅ `/portfolio` — manually-entered holdings only, intentionally minimal
+  (current-value snapshot, not a historical performance tracker — see
+  `docs/portfolio.md` for the explicit "out of scope" list). One row per
+  symbol, blended on add via weighted-average cost
+  (`lib/portfolio/valuation.ts`); market value never summed across
+  currencies (same principle as trade statistics)
+- ✅ BIST preparation docs (`docs/market-data.md`): what's already
+  architecture-ready (currency plumbing, exchange-suffix mapping, the
+  Market Universe abstraction) vs. what a real provider still needs, and
+  an explicit explanation of why scraping is rejected outright rather
+  than just deprioritized
+- ✅ Dashboard evolution (`/`): a Research Summary section (active
+  candidates, open trades, closed-trade win rate, quick links into
+  Scanner/Backtest/Monte Carlo/Candidates) replacing the generic
+  TradingView-only homepage; removed the Peerlist upvote badge
+  (SaaS-marketing cruft, per Milestone 1's original exclusion criteria)
+- ✅ Nav updated incrementally as each milestone shipped — Scanner,
+  Candidates, Journal, Statistics, Backtest, Monte Carlo, Portfolio all
+  present in `NAV_ITEMS`
+- ✅ Data-freshness timestamp added to the Swing Analysis panel (the
+  primary trading-decision surface) — the Scanner, Candidates, Journal,
+  and Backtest pages already showed their own relevant dates
+- ⬜ The donate popup and Siray partner banner (see "Known gaps" below)
+  remain — left alone deliberately, since removing them cleanly requires
+  untangling `components/NavItems.tsx`'s `DonatePopupContext` wiring, a
+  higher-risk change than this milestone's scope justified
 
 ## Known gaps / follow-ups worth remembering
 
@@ -219,11 +243,15 @@ the deployment brief's own priority order.
   `STOCK_ALERT_UPPER_EMAIL_TEMPLATE` / `STOCK_ALERT_LOWER_EMAIL_TEMPLATE`
   ready to use, the send call was just never wired back up after the
   Kit/ConvertKit removal.
-- Cosmetic-only cleanup not addressed (low priority, explicitly
+- Cosmetic-only cleanup not fully addressed (low priority, explicitly
   deprioritized versus functional work per the deployment brief): the
-  donate popup, the Siray partner banner, and the Peerlist upvote badges
-  are all still present from upstream. None of this is functionally wrong,
-  just not private-terminal-appropriate branding.
+  Peerlist upvote badge was removed as part of Milestone 10's dashboard
+  update, but the donate popup and Siray partner banner are still present
+  from upstream — removing them cleanly requires untangling
+  `components/NavItems.tsx`'s `DonatePopupContext` wiring (the "Donate"
+  nav button), which was judged a higher-risk change than this milestone's
+  scope justified. None of this is functionally wrong, just not
+  private-terminal-appropriate branding.
 - A handful of `<img>` → `next/image` and React-hooks-exhaustive-deps
   ESLint *warnings* remain (not errors — they don't block the build).
   Tracked, not urgent.

@@ -32,6 +32,7 @@ export default function SwingAnalysisPanel({ symbol, outcome }: { symbol: string
                         This is research output, not investment advice — the owner remains responsible for any
                         decisions. {passedCount}/{analysis.rules.length} rules passed.
                     </p>
+                    <p className="mt-1 text-xs text-gray-600">Analysis as of {new Date(analysis.timestamp).toLocaleString()}</p>
                 </div>
 
                 <div className="flex items-center gap-3 rounded-2xl border border-gray-800 bg-black/20 p-4">

@@ -98,3 +98,60 @@ is confirmed to exist. When one is:
    there).
 3. Nothing else changes. The UI, the swing engine, and every server action
    already depend only on the `MarketDataProvider` interface.
+
+### What's already architecture-ready for BIST specifically
+
+Nothing below is BIST *support* — it's the parts of the existing
+architecture that a real BIST provider would slot into without needing a
+redesign, listed so a future implementer doesn't have to rediscover this:
+
+- **Currency**: `InstrumentId.currency`/`Quote.currency`/`CompanyProfile.currency`
+  (`lib/market-data/types.ts`) are already optional, provider-supplied
+  strings, never hardcoded to `USD` — a BIST provider returning `TRY`
+  requires no type change. `lib/risk/positionSizing.ts` and every R-multiple
+  calculation in `lib/trades/`, `lib/statistics/`, and `lib/backtest/` are
+  already currency-agnostic (R-multiples are dimensionless ratios); only
+  the Trade Journal's *display* formatting is currency-aware today
+  (`components/journal/JournalClient.tsx::formatMoney`) — a BIST rollout
+  would need the same per-currency treatment anywhere else raw prices are
+  displayed, which today assumes USD for formatting (`lib/utils.ts::formatPrice`)
+  even though the data layer underneath doesn't.
+- **Exchange symbol mapping**: `lib/utils.ts::FINNHUB_TO_TRADINGVIEW_EXCHANGE`
+  already maps Finnhub's `.IS` suffix to `BIST` for TradingView widget
+  embeds — a leftover from the upstream project, not something built for
+  this feature, but confirming the exchange-suffix convention this app
+  already uses is compatible.
+- **Market Universe abstraction** (`lib/market-data/universe.ts`): adding a
+  `bist-30` (or similar) entry is exactly as much work as `dow-30` was —
+  a static, versioned, explicitly-labeled symbol list (see
+  `lib/market-data/universes/dow30.ts` for the pattern). The scanner,
+  backtester, and candidate/statistics pipeline all already work against
+  any `MarketUniverse`, BIST included, with zero further changes once a
+  provider exists.
+- **Rule engine**: `lib/swing/` operates on `OhlcBar[]` and has no
+  provider- or exchange-specific logic anywhere in it.
+
+### Why scraping is explicitly rejected, not just deprioritized
+
+A scraped BIST data source (screen-scraping a public website, or an
+undocumented/unauthorized endpoint) is not an acceptable substitute for a
+real provider, for the same reasons the Nasdaq-100/S&P-500 universes are
+labeled `partial: true` rather than pretending to be exact (`docs/scanner.md`):
+
+- It breaks silently and often (a page layout change, a bot-detection
+  rollout, a ToS enforcement action) with no warning to the owner, unlike
+  a documented API error (`MarketDataError`) the rest of this layer is
+  built to handle explicitly.
+- It's frequently a Terms of Service violation, which this project does
+  not do regardless of technical feasibility.
+- A backtester or live scanner silently fed corrupted/incomplete scraped
+  data is worse than one that plainly says "BIST isn't available yet" —
+  exactly the "looks credible while being wrong" failure mode
+  `docs/backtesting.md` and `docs/monte-carlo.md` both call out for their
+  own respective risks.
+
+A real BIST integration needs a provider with published, authorized
+API access (free or paid) and stable historical daily bars — the same bar
+this project already held Finnhub/Stooq to (see above). Until one is
+confirmed, BIST stays exactly what it is today: an architecture that's
+ready, not a feature that pretends to work.
