@@ -10,11 +10,11 @@ const Header = async ({ user }: { user: User }) => {
     return (
         <header className="sticky top-0 header">
             <div className="container header-wrapper">
-                <BrandWordmark />
-                <nav className="hidden sm:block">
+                <div className="shrink-0"><BrandWordmark /></div>
+                <nav className="hidden min-w-0 flex-1 sm:block">
                     <NavItems initialStocks={initialStocks} />
                 </nav>
-                <div className="flex items-center gap-2">
+                <div className="flex shrink-0 items-center gap-2">
                     <div className="hidden lg:block">
                         <ThemeToggle compact />
                     </div>
