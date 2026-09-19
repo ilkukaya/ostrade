@@ -2,6 +2,7 @@ import { finnhubProvider } from '@/lib/market-data/providers/finnhub';
 import { stooqProvider } from '@/lib/market-data/providers/stooq';
 import { yahooProvider } from '@/lib/market-data/providers/yahoo';
 import { resolveInstrument } from '@/lib/market-data/instruments/resolve';
+import { searchLocalInstruments } from '@/lib/market-data/localSearch';
 import {
     MarketDataError,
     type CompanyProfile,
@@ -16,22 +17,65 @@ import {
 } from '@/lib/market-data/types';
 
 /**
- * Routes a symbol to its market-data provider for quote / company profile /
- * financials / news / search — "optional enrichment" per docs/market-data.md.
- * This is a separate routing decision from historical bars' chain below, but
- * uses the same market-aware split: a BIST symbol routes to Yahoo (the same
- * provider already used for BIST historical bars — see docs/bist.md), which
- * honestly reports `unavailable` for financials/news/search (only
- * quote/historical-prices/company-name are implemented — see
- * providers/yahoo.ts) rather than fabricating a result. Everything else
- * still routes to Finnhub.
+ * Routes a symbol to its market-data provider for financials/news —
+ * Finnhub-only "optional enrichment" per docs/market-data.md, with no
+ * fallback: Yahoo doesn't implement either (see providers/yahoo.ts), so an
+ * absent/failing Finnhub key means these two genuinely stay `unavailable`,
+ * an accepted, documented limitation rather than something to paper over.
+ * A BIST symbol still routes to Yahoo (never to Finnhub, which has no BIST
+ * coverage at all) purely so the resulting "unavailable" is attributed
+ * honestly rather than blamed on a Finnhub failure that never happened.
+ * Quote and company-profile have their OWN fallback chains below — they are
+ * NOT routed through this function, since Yahoo does implement both.
  */
 export function getProviderForSymbol(symbol: string): MarketDataProvider {
     return resolveInstrument(symbol).market === 'TR' ? yahooProvider : finnhubProvider;
 }
 
-export function getQuote(symbol: string): Promise<MarketDataResult<Quote>> {
-    return getProviderForSymbol(symbol).getQuote(symbol);
+/** Tries each provider in `chain` in order, returning the first success; if
+ * every one fails, returns the LAST provider's error (the one that got
+ * furthest down the chain). Shared by the quote/company-profile/historical-
+ * bars chains below so "try provider after provider, keep the most useful
+ * failure" is implemented exactly once. */
+async function tryProviderChain<T>(
+    chain: MarketDataProvider[],
+    call: (provider: MarketDataProvider) => Promise<MarketDataResult<T>>,
+    symbol: string,
+    label: string,
+): Promise<MarketDataResult<T>> {
+    let lastError = new MarketDataError('unavailable', `No ${label} provider available for ${symbol}`);
+    for (const provider of chain) {
+        const result = await call(provider);
+        if (result.ok) return result;
+        lastError = result.error;
+    }
+    return { ok: false, error: lastError };
+}
+
+/**
+ * Quote fallback chain — unlike financials/news, Yahoo DOES implement
+ * quotes (derived from its EOD chart data, not a live tick — see
+ * providers/yahoo.ts), so this is the one enrichment-tier function that
+ * keeps working, for every market, even with FINNHUB_API_KEY unset: Finnhub
+ * is tried first when configured (richer, closer to real-time), Yahoo is
+ * the free fallback. BIST has no Finnhub coverage at all, so it skips
+ * straight to Yahoo — see docs/market-data.md.
+ */
+function getQuoteChain(market: string): MarketDataProvider[] {
+    return market === 'TR' ? [yahooProvider] : [finnhubProvider, yahooProvider];
+}
+
+export async function getQuote(symbol: string): Promise<MarketDataResult<Quote>> {
+    const instrument = resolveInstrument(symbol);
+    return tryProviderChain(getQuoteChain(instrument.market ?? 'US'), (p) => p.getQuote(symbol), symbol, 'quote');
+}
+
+/** Same reasoning as getQuoteChain — Yahoo's company-profile is limited
+ * (a verified local name where known, otherwise just the ticker — see
+ * providers/yahoo.ts) but real and never fabricated, so it's a legitimate
+ * fallback rather than nothing at all. */
+function getCompanyProfileChain(market: string): MarketDataProvider[] {
+    return market === 'TR' ? [yahooProvider] : [finnhubProvider, yahooProvider];
 }
 
 /**
@@ -83,8 +127,9 @@ export async function getHistoricalPrices(symbol: string, timeframe: Timeframe =
     return (await getHistoricalPricesWithProvider(symbol, timeframe)).result;
 }
 
-export function getCompanyProfile(symbol: string): Promise<MarketDataResult<CompanyProfile>> {
-    return getProviderForSymbol(symbol).getCompanyProfile(symbol);
+export async function getCompanyProfile(symbol: string): Promise<MarketDataResult<CompanyProfile>> {
+    const instrument = resolveInstrument(symbol);
+    return tryProviderChain(getCompanyProfileChain(instrument.market ?? 'US'), (p) => p.getCompanyProfile(symbol), symbol, 'company-profile');
 }
 
 export function getFinancials(symbol: string): Promise<MarketDataResult<FinancialData>> {
@@ -137,10 +182,24 @@ export async function getNewsForWatchlist(symbols: string[], maxArticles = 6): P
     return general.ok ? general.data : [];
 }
 
-export function searchSymbols(query: string): Promise<MarketDataResult<SearchResult[]>> {
-    // Symbol search has no symbol to route on yet; defer to the default
-    // (Finnhub) provider until a second provider/universe exists.
-    return finnhubProvider.searchSymbols(query);
+/**
+ * Local universe search (see localSearch.ts — no API key, always available)
+ * merged with Finnhub's broader live search as an optional enrichment.
+ * Always succeeds: an absent/failing Finnhub key means a smaller result set
+ * (local matches only), never a hard error — search must keep working with
+ * FINNHUB_API_KEY unset (see docs/market-data.md's zero-cost-first / "core
+ * required vs optional" principle).
+ */
+export async function searchSymbols(query: string): Promise<MarketDataResult<SearchResult[]>> {
+    const local = searchLocalInstruments(query);
+    const finnhubResult = await finnhubProvider.searchSymbols(query);
+    if (!finnhubResult.ok) {
+        return { ok: true, data: local };
+    }
+
+    const seen = new Set(local.map((r) => r.symbol));
+    const merged = [...local, ...finnhubResult.data.filter((r) => !seen.has(r.symbol))];
+    return { ok: true, data: merged };
 }
 
 export interface WatchlistQuote {

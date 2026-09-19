@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { CompanyProfile, MarketDataResult, HistoricalBar, Quote } from '@/lib/market-data/types';
+import type { CompanyProfile, MarketDataResult, HistoricalBar, Quote, SearchResult } from '@/lib/market-data/types';
 
 const stooqGetHistoricalPrices = vi.fn<(symbol: string, timeframe: string) => Promise<MarketDataResult<HistoricalBar[]>>>();
 const yahooGetHistoricalPrices = vi.fn<(symbol: string, timeframe: string) => Promise<MarketDataResult<HistoricalBar[]>>>();
@@ -7,6 +7,7 @@ const yahooGetQuote = vi.fn<(symbol: string) => Promise<MarketDataResult<Quote>>
 const yahooGetCompanyProfile = vi.fn<(symbol: string) => Promise<MarketDataResult<CompanyProfile>>>();
 const finnhubGetQuote = vi.fn<(symbol: string) => Promise<MarketDataResult<Quote>>>();
 const finnhubGetCompanyProfile = vi.fn<(symbol: string) => Promise<MarketDataResult<CompanyProfile>>>();
+const finnhubSearchSymbols = vi.fn<(query: string) => Promise<MarketDataResult<SearchResult[]>>>();
 
 vi.mock('@/lib/market-data/providers/stooq', () => ({
     stooqProvider: { id: 'stooq', getHistoricalPrices: (...args: [string, string]) => stooqGetHistoricalPrices(...args) },
@@ -27,11 +28,11 @@ vi.mock('@/lib/market-data/providers/finnhub', () => ({
         getCompanyProfile: (...args: [string]) => finnhubGetCompanyProfile(...args),
         getFinancials: vi.fn(),
         getNews: vi.fn(),
-        searchSymbols: vi.fn(),
+        searchSymbols: (...args: [string]) => finnhubSearchSymbols(...args),
     },
 }));
 
-import { getCompanyProfile, getHistoricalPrices, getHistoricalPricesWithProvider, getQuote } from '@/lib/market-data/service';
+import { getCompanyProfile, getHistoricalPrices, getHistoricalPricesWithProvider, getQuote, searchSymbols } from '@/lib/market-data/service';
 
 const bars: HistoricalBar[] = [{ time: '2024-01-02', open: 1, high: 2, low: 0.5, close: 1.5, volume: 100 }];
 
@@ -103,7 +104,7 @@ describe('service.getHistoricalPricesWithProvider', () => {
     });
 });
 
-describe('service.getProviderForSymbol (quote / company profile routing)', () => {
+describe('service.getQuote / getCompanyProfile chains', () => {
     beforeEach(() => {
         yahooGetQuote.mockReset();
         yahooGetCompanyProfile.mockReset();
@@ -111,7 +112,7 @@ describe('service.getProviderForSymbol (quote / company profile routing)', () =>
         finnhubGetCompanyProfile.mockReset();
     });
 
-    it('routes a US symbol to Finnhub for quote and company profile', async () => {
+    it('prefers Finnhub for a US symbol when it succeeds — never falls through to Yahoo', async () => {
         finnhubGetQuote.mockResolvedValue({
             ok: true,
             data: { symbol: 'AAPL', price: 1, change: 0, changePercent: 0, currency: 'USD', asOf: '2024-01-05T00:00:00.000Z' },
@@ -125,6 +126,24 @@ describe('service.getProviderForSymbol (quote / company profile routing)', () =>
         expect(finnhubGetCompanyProfile).toHaveBeenCalledWith('AAPL');
         expect(yahooGetQuote).not.toHaveBeenCalled();
         expect(yahooGetCompanyProfile).not.toHaveBeenCalled();
+    });
+
+    it('falls back to Yahoo for a US symbol when Finnhub is not configured — quote/profile still work with FINNHUB_API_KEY unset', async () => {
+        finnhubGetQuote.mockResolvedValue({ ok: false, error: { kind: 'not_configured', message: 'no key' } as never });
+        finnhubGetCompanyProfile.mockResolvedValue({ ok: false, error: { kind: 'not_configured', message: 'no key' } as never });
+        yahooGetQuote.mockResolvedValue({
+            ok: true,
+            data: { symbol: 'AAPL', price: 1, change: 0, changePercent: 0, currency: 'USD', asOf: '2024-01-05T00:00:00.000Z' },
+        });
+        yahooGetCompanyProfile.mockResolvedValue({ ok: true, data: { symbol: 'AAPL', name: 'AAPL', currency: 'USD' } });
+
+        const quote = await getQuote('AAPL');
+        const profile = await getCompanyProfile('AAPL');
+
+        expect(quote.ok).toBe(true);
+        expect(profile.ok).toBe(true);
+        expect(yahooGetQuote).toHaveBeenCalledWith('AAPL');
+        expect(yahooGetCompanyProfile).toHaveBeenCalledWith('AAPL');
     });
 
     it('routes a known BIST symbol to Yahoo for quote and company profile — never Finnhub, which has no BIST coverage', async () => {
@@ -141,5 +160,49 @@ describe('service.getProviderForSymbol (quote / company profile routing)', () =>
         expect(yahooGetCompanyProfile).toHaveBeenCalledWith('THYAO');
         expect(finnhubGetQuote).not.toHaveBeenCalled();
         expect(finnhubGetCompanyProfile).not.toHaveBeenCalled();
+    });
+
+    it('returns the last error when both providers in the chain fail', async () => {
+        finnhubGetQuote.mockResolvedValue({ ok: false, error: { kind: 'not_configured', message: 'no key' } as never });
+        yahooGetQuote.mockResolvedValue({ ok: false, error: { kind: 'network', message: 'yahoo down' } as never });
+
+        const quote = await getQuote('AAPL');
+        expect(quote.ok).toBe(false);
+        if (!quote.ok) expect(quote.error.message).toBe('yahoo down');
+    });
+});
+
+describe('service.searchSymbols (local + optional Finnhub enrichment)', () => {
+    beforeEach(() => {
+        finnhubSearchSymbols.mockReset();
+    });
+
+    it('always succeeds with local matches even when Finnhub is not configured', async () => {
+        finnhubSearchSymbols.mockResolvedValue({ ok: false, error: { kind: 'not_configured', message: 'no key' } as never });
+
+        const result = await searchSymbols('AAPL');
+
+        expect(result.ok).toBe(true);
+        if (result.ok) {
+            expect(result.data.some((r) => r.symbol === 'AAPL')).toBe(true);
+        }
+    });
+
+    it('merges Finnhub results in when it succeeds, without duplicating a symbol local search already found', async () => {
+        finnhubSearchSymbols.mockResolvedValue({
+            ok: true,
+            data: [
+                { symbol: 'AAPL', name: 'Apple Inc. (Finnhub)', exchange: 'NASDAQ', type: 'Common Stock' },
+                { symbol: 'AAPLW', name: 'Apple Warrant', exchange: 'NASDAQ', type: 'Warrant' },
+            ],
+        });
+
+        const result = await searchSymbols('AAPL');
+
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+        const symbols = result.data.map((r) => r.symbol);
+        expect(symbols.filter((s) => s === 'AAPL')).toHaveLength(1); // deduped, local wins
+        expect(symbols).toContain('AAPLW'); // Finnhub-only match still included
     });
 });

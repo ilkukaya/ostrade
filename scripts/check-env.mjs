@@ -8,16 +8,13 @@
 const requiredVars = {
     // Core
     'NODE_ENV': 'development or production',
-    
+
     // Database
     'MONGODB_URI': 'MongoDB connection string',
-    
+
     // Better Auth
     'BETTER_AUTH_SECRET': 'Secret key for Better Auth',
     'BETTER_AUTH_URL': 'Auth URL (e.g., http://localhost:3000)',
-    
-    // Finnhub
-    'FINNHUB_API_KEY': 'Finnhub API key (server-side only, never exposed to the browser)',
 };
 
 const deprecatedVars = {
@@ -25,6 +22,7 @@ const deprecatedVars = {
 };
 
 const optionalVars = {
+    'FINNHUB_API_KEY': 'Optional — Stooq/Yahoo need no key and cover core EOD market data; Finnhub only adds richer live quotes/financials/news when set',
     'FINNHUB_BASE_URL': 'Optional Finnhub API base URL override (default: https://finnhub.io/api/v1)',
     'AUTHORIZED_EMAIL': 'Optional allowlisted owner email; when set, sign-up is restricted to this address',
     'GEMINI_API_KEY': 'Optional Google Gemini API key for AI-personalized welcome emails',
