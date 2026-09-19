@@ -2,8 +2,9 @@ import { connectToDatabase } from '@/database/mongoose';
 import { ScannerRun, type ScannerRunDocument, type ScannerResultDoc, type ScannerSkippedSymbol } from '@/database/models/scannerRun.model';
 import { Watchlist } from '@/database/models/watchlist.model';
 import { CUSTOM_WATCHLIST_UNIVERSE_ID, getStaticUniverse } from '@/lib/market-data/universe';
-import { getCompanyProfile, getHistoricalPrices } from '@/lib/market-data/service';
-import { describeMarketDataError } from '@/lib/market-data/types';
+import { getCompanyProfile } from '@/lib/market-data/service';
+import { getBarsOrFetch } from '@/lib/market-data/historicalDataRepository';
+import { resolveInstrument } from '@/lib/market-data/instruments/resolve';
 import { analyzeSwingSetupDetailed } from '@/lib/swing/analyze';
 import { defaultSwingStrategyConfig, type SwingStrategyConfig } from '@/lib/swing/config';
 import { fingerprintStrategyConfig } from '@/lib/swing/configFingerprint';
@@ -27,6 +28,13 @@ const CONCURRENCY = 4;
  * by default. */
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
+/** Latest-N bars requested per symbol during a scan — enough for every
+ * indicator the swing engine computes (longest lookback: the 200-day SMA),
+ * with headroom to spare. Local-first (see historicalDataRepository.ts), so
+ * this only trims what's returned, never what's stored; the backtester
+ * requests its own full range separately. See docs/scanner.md. */
+const SCAN_BARS_LIMIT = 300;
+
 async function resolveUniverseSymbols(universeId: string, userId: string): Promise<string[]> {
     if (universeId === CUSTOM_WATCHLIST_UNIVERSE_ID) {
         await connectToDatabase();
@@ -46,28 +54,25 @@ async function analyzeSymbol(
     config: SwingStrategyConfig,
 ): Promise<{ result?: ScannerResultDoc; skip?: ScannerSkippedSymbol }> {
     try {
-        const [barsResult, profileResult] = await Promise.all([
-            getHistoricalPrices(symbol, 'D'),
-            getCompanyProfile(symbol),
+        const instrument = resolveInstrument(symbol);
+        const [bars, profileResult] = await Promise.all([
+            getBarsOrFetch(instrument, { limit: SCAN_BARS_LIMIT }),
+            getCompanyProfile(instrument.symbol),
         ]);
 
-        if (!barsResult.ok) {
-            return { skip: { symbol, reason: describeMarketDataError(barsResult.error) } };
-        }
-
-        const detailed = analyzeSwingSetupDetailed(symbol, barsResult.data, config);
+        const detailed = analyzeSwingSetupDetailed(instrument.symbol, bars, config);
         if (!detailed) {
-            return { skip: { symbol, reason: 'No historical data available for this symbol.' } };
+            return { skip: { symbol: instrument.symbol, reason: 'No historical data available for this symbol.' } };
         }
 
         const { snapshot, result } = detailed;
-        const bars = snapshot.bars;
-        const previousBar = bars.length >= 2 ? bars[bars.length - 2] : undefined;
+        const snapshotBars = snapshot.bars;
+        const previousBar = snapshotBars.length >= 2 ? snapshotBars[snapshotBars.length - 2] : undefined;
         const changePercent =
             previousBar && previousBar.close !== 0 ? ((snapshot.price - previousBar.close) / previousBar.close) * 100 : 0;
 
         const doc: ScannerResultDoc = {
-            symbol,
+            symbol: instrument.symbol,
             companyName: profileResult.ok ? profileResult.data.name : undefined,
             price: snapshot.price,
             changePercent,

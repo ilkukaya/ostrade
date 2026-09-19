@@ -121,23 +121,28 @@ const FIXTURE_BARS: Record<string, OhlcBar[]> = {
     AAA: makeBars(60, 0.5),
     BBB: makeBars(60, 0.3),
     CCC: makeBars(60, 0.2),
+    THYAO: makeBars(60, 0.4),
 };
 const FAILING_SYMBOL = 'ZZZ';
 
 vi.mock('@/lib/market-data/service', () => ({
-    getHistoricalPrices: vi.fn(async (symbol: string): Promise<MarketDataResult<HistoricalBar[]>> => {
-        const bars = FIXTURE_BARS[symbol];
-        if (!bars) {
-            return { ok: false, error: { kind: 'not_found', message: 'no data', name: 'MarketDataError' } as never };
-        }
-        return { ok: true, data: bars };
-    }),
     getCompanyProfile: vi.fn(async (symbol: string): Promise<MarketDataResult<CompanyProfile>> => {
         return { ok: true, data: { symbol, name: `${symbol} Inc.`, currency: 'USD' } };
     }),
 }));
 
-import { getHistoricalPrices, getCompanyProfile } from '@/lib/market-data/service';
+// The scanner is local-first (see historicalDataRepository.ts) — it never
+// calls a market-data provider directly, only the repository. Mocking at
+// this boundary is what actually proves that, rather than assuming it.
+const mockGetBarsOrFetch = vi.fn(async (instrument: { symbol: string }, options?: unknown): Promise<HistoricalBar[]> => {
+    void options;
+    return FIXTURE_BARS[instrument.symbol] ?? [];
+});
+vi.mock('@/lib/market-data/historicalDataRepository', () => ({
+    getBarsOrFetch: (...args: [{ symbol: string }, unknown?]) => mockGetBarsOrFetch(...args),
+}));
+
+import { getCompanyProfile } from '@/lib/market-data/service';
 import { runScannerBatch } from '@/lib/scanner/service';
 
 describe('runScannerBatch', () => {
@@ -145,7 +150,7 @@ describe('runScannerBatch', () => {
         runStore = [];
         nextId = 0;
         watchlistItems = [];
-        vi.mocked(getHistoricalPrices).mockClear();
+        mockGetBarsOrFetch.mockClear();
         vi.mocked(getCompanyProfile).mockClear();
     });
 
@@ -178,7 +183,7 @@ describe('runScannerBatch', () => {
 
         expect(progress.results).toHaveLength(1);
         expect(progress.results[0].instrument.symbol).toBe('AAA');
-        expect(progress.skipped).toEqual([{ symbol: FAILING_SYMBOL, reason: 'No data found for this symbol.' }]);
+        expect(progress.skipped).toEqual([{ symbol: FAILING_SYMBOL, reason: 'No historical data available for this symbol.' }]);
         expect(progress.scannedSymbols).toBe(2); // still counted as scanned, just not a qualifying result
     });
 
@@ -187,23 +192,23 @@ describe('runScannerBatch', () => {
 
         const first = await runScannerBatch({ userId: 'user-1', universeId: 'custom-watchlist' });
         expect(first.fromCache).toBe(false);
-        expect(getHistoricalPrices).toHaveBeenCalledTimes(1);
+        expect(mockGetBarsOrFetch).toHaveBeenCalledTimes(1);
 
         const second = await runScannerBatch({ userId: 'user-1', universeId: 'custom-watchlist' });
         expect(second.fromCache).toBe(true);
         expect(second.results).toHaveLength(1);
         // No new market-data calls — served entirely from the cached run.
-        expect(getHistoricalPrices).toHaveBeenCalledTimes(1);
+        expect(mockGetBarsOrFetch).toHaveBeenCalledTimes(1);
     });
 
     it('forceRefresh bypasses the cache and re-scans', async () => {
         watchlistItems = [{ symbol: 'AAA' }];
         await runScannerBatch({ userId: 'user-1', universeId: 'custom-watchlist' });
-        expect(getHistoricalPrices).toHaveBeenCalledTimes(1);
+        expect(mockGetBarsOrFetch).toHaveBeenCalledTimes(1);
 
         const refreshed = await runScannerBatch({ userId: 'user-1', universeId: 'custom-watchlist', forceRefresh: true });
         expect(refreshed.fromCache).toBe(false);
-        expect(getHistoricalPrices).toHaveBeenCalledTimes(2);
+        expect(mockGetBarsOrFetch).toHaveBeenCalledTimes(2);
     });
 
     it('processes a universe larger than one batch across multiple calls, reporting progress', async () => {
@@ -257,5 +262,22 @@ describe('runScannerBatch', () => {
         expect(progress.status).toBe('completed');
         expect(progress.totalSymbols).toBe(0);
         expect(progress.results).toEqual([]);
+    });
+
+    it('resolves BIST instrument metadata (market/currency) when scanning a BIST symbol', async () => {
+        watchlistItems = [{ symbol: 'THYAO' }];
+
+        const progress = await runScannerBatch({ userId: 'user-1', universeId: 'custom-watchlist' });
+
+        expect(progress.results).toHaveLength(1);
+        expect(progress.results[0].instrument.symbol).toBe('THYAO');
+        // The scanner never guesses market/currency itself — it defers
+        // entirely to resolveInstrument, the single BIST-aware translation
+        // point (see instruments/resolve.ts), and reads through the local
+        // repository rather than a live provider call either way.
+        expect(mockGetBarsOrFetch).toHaveBeenCalledWith(
+            expect.objectContaining({ symbol: 'THYAO', market: 'TR', currency: 'TRY' }),
+            expect.objectContaining({ limit: expect.any(Number) }),
+        );
     });
 });

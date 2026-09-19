@@ -1,22 +1,37 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { MarketDataResult, HistoricalBar } from '@/lib/market-data/types';
+import type { CompanyProfile, MarketDataResult, HistoricalBar, Quote } from '@/lib/market-data/types';
 
 const stooqGetHistoricalPrices = vi.fn<(symbol: string, timeframe: string) => Promise<MarketDataResult<HistoricalBar[]>>>();
 const yahooGetHistoricalPrices = vi.fn<(symbol: string, timeframe: string) => Promise<MarketDataResult<HistoricalBar[]>>>();
+const yahooGetQuote = vi.fn<(symbol: string) => Promise<MarketDataResult<Quote>>>();
+const yahooGetCompanyProfile = vi.fn<(symbol: string) => Promise<MarketDataResult<CompanyProfile>>>();
+const finnhubGetQuote = vi.fn<(symbol: string) => Promise<MarketDataResult<Quote>>>();
+const finnhubGetCompanyProfile = vi.fn<(symbol: string) => Promise<MarketDataResult<CompanyProfile>>>();
 
 vi.mock('@/lib/market-data/providers/stooq', () => ({
     stooqProvider: { id: 'stooq', getHistoricalPrices: (...args: [string, string]) => stooqGetHistoricalPrices(...args) },
 }));
 vi.mock('@/lib/market-data/providers/yahoo', () => ({
-    yahooProvider: { id: 'yahoo', getHistoricalPrices: (...args: [string, string]) => yahooGetHistoricalPrices(...args) },
+    yahooProvider: {
+        id: 'yahoo',
+        getHistoricalPrices: (...args: [string, string]) => yahooGetHistoricalPrices(...args),
+        getQuote: (...args: [string]) => yahooGetQuote(...args),
+        getCompanyProfile: (...args: [string]) => yahooGetCompanyProfile(...args),
+    },
 }));
-// Finnhub is untouched by this routing but service.ts still imports it —
-// keep its module inert for these tests.
 vi.mock('@/lib/market-data/providers/finnhub', () => ({
-    finnhubProvider: { id: 'finnhub', getQuote: vi.fn(), getHistoricalPrices: vi.fn(), getCompanyProfile: vi.fn(), getFinancials: vi.fn(), getNews: vi.fn(), searchSymbols: vi.fn() },
+    finnhubProvider: {
+        id: 'finnhub',
+        getQuote: (...args: [string]) => finnhubGetQuote(...args),
+        getHistoricalPrices: vi.fn(),
+        getCompanyProfile: (...args: [string]) => finnhubGetCompanyProfile(...args),
+        getFinancials: vi.fn(),
+        getNews: vi.fn(),
+        searchSymbols: vi.fn(),
+    },
 }));
 
-import { getHistoricalPrices, getHistoricalPricesWithProvider } from '@/lib/market-data/service';
+import { getCompanyProfile, getHistoricalPrices, getHistoricalPricesWithProvider, getQuote } from '@/lib/market-data/service';
 
 const bars: HistoricalBar[] = [{ time: '2024-01-02', open: 1, high: 2, low: 0.5, close: 1.5, volume: 100 }];
 
@@ -85,5 +100,46 @@ describe('service.getHistoricalPricesWithProvider', () => {
 
         const { providerId } = await getHistoricalPricesWithProvider('AAPL', 'D');
         expect(providerId).toBe('yahoo');
+    });
+});
+
+describe('service.getProviderForSymbol (quote / company profile routing)', () => {
+    beforeEach(() => {
+        yahooGetQuote.mockReset();
+        yahooGetCompanyProfile.mockReset();
+        finnhubGetQuote.mockReset();
+        finnhubGetCompanyProfile.mockReset();
+    });
+
+    it('routes a US symbol to Finnhub for quote and company profile', async () => {
+        finnhubGetQuote.mockResolvedValue({
+            ok: true,
+            data: { symbol: 'AAPL', price: 1, change: 0, changePercent: 0, currency: 'USD', asOf: '2024-01-05T00:00:00.000Z' },
+        });
+        finnhubGetCompanyProfile.mockResolvedValue({ ok: true, data: { symbol: 'AAPL', name: 'Apple Inc.', currency: 'USD' } });
+
+        await getQuote('AAPL');
+        await getCompanyProfile('AAPL');
+
+        expect(finnhubGetQuote).toHaveBeenCalledWith('AAPL');
+        expect(finnhubGetCompanyProfile).toHaveBeenCalledWith('AAPL');
+        expect(yahooGetQuote).not.toHaveBeenCalled();
+        expect(yahooGetCompanyProfile).not.toHaveBeenCalled();
+    });
+
+    it('routes a known BIST symbol to Yahoo for quote and company profile — never Finnhub, which has no BIST coverage', async () => {
+        yahooGetQuote.mockResolvedValue({
+            ok: true,
+            data: { symbol: 'THYAO', price: 1, change: 0, changePercent: 0, currency: 'TRY', asOf: '2024-01-05T00:00:00.000Z' },
+        });
+        yahooGetCompanyProfile.mockResolvedValue({ ok: true, data: { symbol: 'THYAO', name: 'Türk Hava Yolları', currency: 'TRY' } });
+
+        await getQuote('THYAO');
+        await getCompanyProfile('THYAO');
+
+        expect(yahooGetQuote).toHaveBeenCalledWith('THYAO');
+        expect(yahooGetCompanyProfile).toHaveBeenCalledWith('THYAO');
+        expect(finnhubGetQuote).not.toHaveBeenCalled();
+        expect(finnhubGetCompanyProfile).not.toHaveBeenCalled();
     });
 });

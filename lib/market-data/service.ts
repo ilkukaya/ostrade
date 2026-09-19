@@ -16,16 +16,18 @@ import {
 } from '@/lib/market-data/types';
 
 /**
- * Routes a symbol to its market-data provider for company profile /
- * financials / news / search — "optional enrichment" per docs/market-data.md,
- * still Finnhub-only today. This is deliberately UNRELATED to historical
- * bars, which have their own market-aware chain below — a BIST symbol
- * routed here will honestly report unavailable (Finnhub has no BIST
- * coverage), never fabricate a result.
+ * Routes a symbol to its market-data provider for quote / company profile /
+ * financials / news / search — "optional enrichment" per docs/market-data.md.
+ * This is a separate routing decision from historical bars' chain below, but
+ * uses the same market-aware split: a BIST symbol routes to Yahoo (the same
+ * provider already used for BIST historical bars — see docs/bist.md), which
+ * honestly reports `unavailable` for financials/news/search (only
+ * quote/historical-prices/company-name are implemented — see
+ * providers/yahoo.ts) rather than fabricating a result. Everything else
+ * still routes to Finnhub.
  */
-export function getProviderForSymbol(_symbol: string): MarketDataProvider {
-    void _symbol;
-    return finnhubProvider;
+export function getProviderForSymbol(symbol: string): MarketDataProvider {
+    return resolveInstrument(symbol).market === 'TR' ? yahooProvider : finnhubProvider;
 }
 
 export function getQuote(symbol: string): Promise<MarketDataResult<Quote>> {
