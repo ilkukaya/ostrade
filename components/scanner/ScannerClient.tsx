@@ -133,7 +133,7 @@ export default function ScannerClient({ universes }: { universes: UniverseOption
     );
 
     return (
-        <div className="space-y-6">
+        <div className="min-w-0 max-w-full space-y-6">
             <div className="flex flex-col gap-4 rounded-2xl border border-gray-800 bg-gray-950/40 p-5 backdrop-blur-sm">
                 <div className="flex flex-wrap items-end gap-4">
                     <Field label="Universe">
@@ -324,7 +324,7 @@ function ResultsTable({
     }
 
     return (
-        <div className="overflow-x-auto rounded-xl border border-gray-800">
+        <div className="ostrade-scroll-x rounded-xl border border-gray-800">
             <table className="w-full min-w-[960px] text-left text-sm">
                 <thead className="bg-gray-900/60 text-xs uppercase tracking-wide text-gray-500">
                     <tr>
