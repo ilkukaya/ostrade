@@ -1,7 +1,6 @@
 import { cache } from 'react';
 import { getDateRange, validateArticle, formatArticle } from '@/lib/utils';
 import { POPULAR_STOCK_SYMBOLS } from '@/lib/constants';
-import { fetchStooqDailyBars } from '@/lib/market-data/providers/stooq';
 import {
     MarketDataError,
     type CompanyProfile,
@@ -163,55 +162,39 @@ async function getFinancials(symbol: string): Promise<MarketDataResult<Financial
     }
 }
 
-/** Finnhub's `/stock/candle` is gated behind a paid plan for most free-tier
- * keys. We try it first (it works out of the box for anyone who does have
- * access), and fall back to Stooq's free daily bars when Finnhub reports a
- * plan restriction or simply isn't configured for candles. */
+/**
+ * Finnhub's `/stock/candle` is gated behind a paid plan for most free-tier
+ * keys, and Finnhub is no longer the primary historical-bar source anyway
+ * (see docs/market-data.md's provider-priority redesign — Stooq/Yahoo now
+ * fill that role via service.ts's own fallback chain). This method still
+ * tries Finnhub's own candle endpoint honestly for anyone who does have
+ * access, but no longer reaches into Stooq itself on failure — Stooq is a
+ * first-class peer provider now (providers/stooq.ts::stooqProvider),
+ * called directly by the chain, not nested inside this file.
+ */
 async function getHistoricalPrices(symbol: string, timeframe: Timeframe): Promise<MarketDataResult<HistoricalBar[]>> {
     const token = apiKey();
+    if (!token) return fail(new MarketDataError('not_configured', 'FINNHUB_API_KEY is not set'), 'not configured');
+
     const resolution = timeframe === 'D' ? 'D' : timeframe === 'W' ? 'W' : 'M';
-
-    if (token) {
-        try {
-            const to = Math.floor(Date.now() / 1000);
-            const from = to - 60 * 60 * 24 * 400; // ~400 days of history
-            const url = `${FINNHUB_BASE_URL}/stock/candle?symbol=${encodeURIComponent(symbol)}&resolution=${resolution}&from=${from}&to=${to}&token=${token}`;
-            const data = await fetchJSON<FinnhubCandle>(url, 3600);
-
-            if (data.s === 'ok' && data.t && data.o && data.h && data.l && data.c && data.v) {
-                const bars: HistoricalBar[] = data.t.map((t, i) => ({
-                    time: new Date(t * 1000).toISOString().slice(0, 10),
-                    open: data.o![i],
-                    high: data.h![i],
-                    low: data.l![i],
-                    close: data.c![i],
-                    volume: data.v![i],
-                }));
-                return ok(bars);
-            }
-            // data.s === 'no_data' falls through to the Stooq fallback below.
-        } catch (error) {
-            if (!(error instanceof MarketDataError) || error.kind !== 'plan_restricted') {
-                // A real (non-plan) error from Finnhub is still worth trying
-                // the fallback for, but we keep it distinguishable in logs.
-                console.warn(`Finnhub candle fetch failed for ${symbol}, falling back to Stooq:`, error);
-            }
-        }
-    }
-
-    if (timeframe !== 'D') {
-        return fail(
-            new MarketDataError('unavailable', 'Weekly/monthly history requires a Finnhub plan with candle access'),
-            'unavailable',
-        );
-    }
-
     try {
-        const bars = await fetchStooqDailyBars(symbol);
-        if (bars.length === 0) {
-            return fail(new MarketDataError('not_found', `No historical data available for ${symbol}`), 'not found');
+        const to = Math.floor(Date.now() / 1000);
+        const from = to - 60 * 60 * 24 * 400; // ~400 days of history
+        const url = `${FINNHUB_BASE_URL}/stock/candle?symbol=${encodeURIComponent(symbol)}&resolution=${resolution}&from=${from}&to=${to}&token=${token}`;
+        const data = await fetchJSON<FinnhubCandle>(url, 3600);
+
+        if (data.s === 'ok' && data.t && data.o && data.h && data.l && data.c && data.v) {
+            const bars: HistoricalBar[] = data.t.map((t, i) => ({
+                time: new Date(t * 1000).toISOString().slice(0, 10),
+                open: data.o![i],
+                high: data.h![i],
+                low: data.l![i],
+                close: data.c![i],
+                volume: data.v![i],
+            }));
+            return ok(bars);
         }
-        return ok(bars);
+        return fail(new MarketDataError('not_found', `No historical data available for ${symbol}`), 'not found');
     } catch (error) {
         return fail(error, `Failed to fetch historical prices for ${symbol}`);
     }

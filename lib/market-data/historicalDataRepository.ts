@@ -2,6 +2,7 @@ import { connectToDatabase } from '@/database/mongoose';
 import { MarketBar } from '@/database/models/marketBar.model';
 import type { HistoricalBar, InstrumentId, Timeframe } from './types';
 import { sanitizeBars, validateBar } from './validateBar';
+import { getHistoricalPrices } from './service';
 
 type BarLike = Pick<HistoricalBar, 'time' | 'open' | 'high' | 'low' | 'close' | 'volume'> & { adjustedClose?: number };
 
@@ -135,6 +136,31 @@ export async function upsertBars(
         updated: result.modifiedCount ?? 0,
         rejected,
     };
+}
+
+/**
+ * Reads from local storage first; if NOTHING is stored for this instrument
+ * yet (never seeded), performs a one-time live provider fetch (via
+ * service.ts's fallback chain), validates + upserts the result, then reads
+ * from storage again. This is the "just-in-time" fallback described in
+ * docs/daily-data-engine.md — it is NOT a general cache-refresh mechanism:
+ * an already-seeded symbol whose data has simply gone stale is NOT
+ * re-fetched here (that's a deliberate sync run's job, not something that
+ * happens implicitly on every read — see lib/market-data/sync/).
+ */
+export async function getBarsOrFetch(
+    instrument: Pick<InstrumentId, 'symbol' | 'market' | 'exchange' | 'currency'>,
+    options: GetBarsOptions = {},
+): Promise<HistoricalBar[]> {
+    const timeframe = options.timeframe ?? 'D';
+    const existing = await getBars(instrument, options);
+    if (existing.length > 0) return existing;
+
+    const fetched = await getHistoricalPrices(instrument.symbol, timeframe);
+    if (!fetched.ok) return [];
+
+    await upsertBars(instrument, fetched.data, 'just-in-time', timeframe);
+    return getBars(instrument, options);
 }
 
 export interface CoverageInfo {

@@ -5,6 +5,11 @@ vi.mock('@/database/mongoose', () => ({
     connectToDatabase: vi.fn(async () => ({})),
 }));
 
+const mockGetHistoricalPrices = vi.fn();
+vi.mock('@/lib/market-data/service', () => ({
+    getHistoricalPrices: (...args: [string, string]) => mockGetHistoricalPrices(...args),
+}));
+
 interface FakeBarDoc {
     symbol: string;
     market: string;
@@ -86,7 +91,7 @@ vi.mock('@/database/models/marketBar.model', () => ({
     },
 }));
 
-import { getBars, getCoverage, getLatestBar, upsertBars } from '@/lib/market-data/historicalDataRepository';
+import { getBars, getBarsOrFetch, getCoverage, getLatestBar, upsertBars } from '@/lib/market-data/historicalDataRepository';
 
 function bar(time: string, close: number): HistoricalBar {
     return { time, open: close, high: close + 1, low: close - 1, close, volume: 1_000 };
@@ -95,6 +100,7 @@ function bar(time: string, close: number): HistoricalBar {
 describe('historicalDataRepository', () => {
     beforeEach(() => {
         store = [];
+        mockGetHistoricalPrices.mockReset();
     });
 
     describe('upsertBars', () => {
@@ -165,6 +171,36 @@ describe('historicalDataRepository', () => {
 
         it('returns an empty array for a symbol with no stored bars', async () => {
             expect(await getBars({ symbol: 'ZZZZ', market: 'US' })).toEqual([]);
+        });
+    });
+
+    describe('getBarsOrFetch', () => {
+        it('returns stored bars directly without ever calling the provider chain', async () => {
+            await upsertBars({ symbol: 'AAPL', market: 'US' }, [bar('2024-01-02', 100)], 'stooq');
+            const bars = await getBarsOrFetch({ symbol: 'AAPL', market: 'US' });
+            expect(bars).toHaveLength(1);
+            expect(mockGetHistoricalPrices).not.toHaveBeenCalled();
+        });
+
+        it('performs a just-in-time provider fetch and seeds storage when nothing is stored yet', async () => {
+            mockGetHistoricalPrices.mockResolvedValue({ ok: true, data: [bar('2024-01-02', 100), bar('2024-01-03', 102)] });
+
+            const bars = await getBarsOrFetch({ symbol: 'AAPL', market: 'US' });
+            expect(bars).toHaveLength(2);
+            expect(mockGetHistoricalPrices).toHaveBeenCalledWith('AAPL', 'D');
+            expect(store).toHaveLength(2); // now persisted for next time
+
+            mockGetHistoricalPrices.mockClear();
+            const secondCall = await getBarsOrFetch({ symbol: 'AAPL', market: 'US' });
+            expect(secondCall).toHaveLength(2);
+            expect(mockGetHistoricalPrices).not.toHaveBeenCalled(); // served from storage this time
+        });
+
+        it('returns an empty array (never fabricated bars) when the provider chain also fails', async () => {
+            mockGetHistoricalPrices.mockResolvedValue({ ok: false, error: { kind: 'not_found', message: 'x' } });
+            const bars = await getBarsOrFetch({ symbol: 'ZZZZ', market: 'US' });
+            expect(bars).toEqual([]);
+            expect(store).toEqual([]);
         });
     });
 

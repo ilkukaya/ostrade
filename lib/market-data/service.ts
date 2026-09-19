@@ -1,27 +1,30 @@
 import { finnhubProvider } from '@/lib/market-data/providers/finnhub';
-import type {
-    CompanyProfile,
-    FinancialData,
-    HistoricalBar,
-    MarketDataProvider,
-    MarketDataResult,
-    NewsItem,
-    Quote,
-    SearchResult,
-    Timeframe,
+import { stooqProvider } from '@/lib/market-data/providers/stooq';
+import { yahooProvider } from '@/lib/market-data/providers/yahoo';
+import { resolveInstrument } from '@/lib/market-data/instruments/resolve';
+import {
+    MarketDataError,
+    type CompanyProfile,
+    type FinancialData,
+    type HistoricalBar,
+    type MarketDataProvider,
+    type MarketDataResult,
+    type NewsItem,
+    type Quote,
+    type SearchResult,
+    type Timeframe,
 } from '@/lib/market-data/types';
 
 /**
- * Routes a symbol to its market-data provider.
- *
- * Every symbol currently resolves to Finnhub. This is intentionally the only
- * place that decision is made — adding a future BIST (or any other) provider
- * means teaching this function to recognize those symbols/exchanges and
- * return a different MarketDataProvider, with zero changes required in the
- * UI or the swing-analysis engine. See docs/market-data.md.
+ * Routes a symbol to its market-data provider for company profile /
+ * financials / news / search — "optional enrichment" per docs/market-data.md,
+ * still Finnhub-only today. This is deliberately UNRELATED to historical
+ * bars, which have their own market-aware chain below — a BIST symbol
+ * routed here will honestly report unavailable (Finnhub has no BIST
+ * coverage), never fabricate a result.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- seam for future symbol-based provider routing (e.g. BIST)
 export function getProviderForSymbol(_symbol: string): MarketDataProvider {
+    void _symbol;
     return finnhubProvider;
 }
 
@@ -29,8 +32,38 @@ export function getQuote(symbol: string): Promise<MarketDataResult<Quote>> {
     return getProviderForSymbol(symbol).getQuote(symbol);
 }
 
-export function getHistoricalPrices(symbol: string, timeframe: Timeframe = 'D'): Promise<MarketDataResult<HistoricalBar[]>> {
-    return getProviderForSymbol(symbol).getHistoricalPrices(symbol, timeframe);
+/**
+ * The historical-bar fallback chain — the one place "which provider for
+ * which market" is decided for EOD OHLCV (see docs/market-data.md):
+ *
+ *   US:  Stooq (primary, free, no key) -> Yahoo (fallback)
+ *   BIST/TR: Yahoo (the only free source identified — see docs/bist.md)
+ *
+ * Tries each provider in order, returning the first success; if every
+ * provider in the chain fails, returns the LAST provider's error (the one
+ * that got furthest down the chain) rather than the first, since that's
+ * usually the more informative failure to surface. Never fabricates bars
+ * when the whole chain fails — callers (the sync engine, or a
+ * just-in-time seed — see historicalDataRepository.ts::getBarsOrFetch) are
+ * expected to fall back to whatever is already stored locally and mark it
+ * stale, per the "never silently fabricate missing bars" rule.
+ */
+function getHistoricalPricesChain(market: string): MarketDataProvider[] {
+    if (market === 'TR') return [yahooProvider];
+    return [stooqProvider, yahooProvider];
+}
+
+export async function getHistoricalPrices(symbol: string, timeframe: Timeframe = 'D'): Promise<MarketDataResult<HistoricalBar[]>> {
+    const instrument = resolveInstrument(symbol);
+    const chain = getHistoricalPricesChain(instrument.market ?? 'US');
+
+    let lastError = new MarketDataError('unavailable', `No historical-data provider available for ${symbol}`);
+    for (const provider of chain) {
+        const result = await provider.getHistoricalPrices(symbol, timeframe);
+        if (result.ok) return result;
+        lastError = result.error;
+    }
+    return { ok: false, error: lastError };
 }
 
 export function getCompanyProfile(symbol: string): Promise<MarketDataResult<CompanyProfile>> {
