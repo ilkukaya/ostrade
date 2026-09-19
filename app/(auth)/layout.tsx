@@ -1,54 +1,68 @@
-import Link from "next/link";
 import React from "react";
-import Image from "next/image";
-import {headers} from "next/headers";
-import {redirect} from "next/navigation";
-import {getAuth} from "@/lib/better-auth/auth";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { BarChart3, Database, ShieldCheck, Sparkles } from "lucide-react";
+import BrandWordmark from "@/components/BrandWordmark";
+import ThemeToggle from "@/components/ThemeToggle";
+import { getAuth } from "@/lib/better-auth/auth";
 
-// Auth pages check the current session (to bounce signed-in users away), so
-// this tree must run per-request rather than be prerendered at build time.
 export const dynamic = 'force-dynamic';
 
-const Layout = async ({ children }: { children : React.ReactNode }) => {
-
+const Layout = async ({ children }: { children: React.ReactNode }) => {
     const auth = await getAuth();
-    const session = await auth.api.getSession({headers: await headers()});
+    const session = await auth.api.getSession({ headers: await headers() });
 
-    if (session?.user) redirect('/')
+    if (session?.user) redirect('/');
+
     return (
         <main className="auth-layout">
             <section className="auth-left-section scrollbar-hide-default">
-                <Link href="/" className="auth-logo flex items-center gap-2">
-                    <Image src="/assets/images/logo.png" alt="Openstock" width={200} height={50}/>
-                </Link>
+                <div className="auth-logo flex items-center justify-between gap-4">
+                    <BrandWordmark />
+                    <ThemeToggle compact />
+                </div>
 
-                <div className="pb-6 lg:pb-8 flex-1">
+                <div className="flex-1 pb-6 lg:pb-8">
                     {children}
                 </div>
             </section>
+
             <section className="auth-right-section">
-                <div className="z-10 relative lg:mt-4 lg:mb-16">
-                    <blockquote className="auth-blockquote">
-                        “For me, OpenStock isn’t just another stock app. It’s about giving people clarity and control in the market, without barriers or subscriptions.”
-                    </blockquote>
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <cite className="auth-testimonial-author">- Ravi Pratap Singh (@ravixalgorithm)</cite>
-                            <p className="max-md:text-xs text-gray-500">Founder @opendevsociety</p>
-                        </div>
-                        <div className="flex items-center gap-0.5">
-                            {[1,2,3,4,5].map((star) => (
-                                <Image src="/assets/icons/star.svg" alt="star" key={star} width={20} height={20} className="w-4 h-4"/>
-                            ))}
-                        </div>
+                <div className="mx-auto flex h-full w-full max-w-2xl flex-col justify-center">
+                    <div className="mb-8 inline-flex w-fit items-center gap-2 rounded-full border border-teal-500/20 bg-teal-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-teal-700 dark:text-teal-300">
+                        Private research workspace
+                    </div>
+                    <h2 className="max-w-xl text-4xl font-black tracking-tight text-foreground lg:text-5xl">
+                        Research the setup.
+                        <span className="block text-teal-600 dark:text-teal-300">Not the noise.</span>
+                    </h2>
+                    <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground">
+                        OSTRADE turns end-of-day market data into an explainable swing-trading workflow:
+                        scan, review, save candidates, backtest and measure risk from one private terminal.
+                    </p>
+
+                    <div className="mt-10 grid gap-3 sm:grid-cols-2">
+                        <Feature icon={<BarChart3 className="h-4 w-4" />} title="Explainable setups" text="Every score is backed by visible rules." />
+                        <Feature icon={<Database className="h-4 w-4" />} title="Local-first EOD data" text="BIST and US research from stored daily bars." />
+                        <Feature icon={<ShieldCheck className="h-4 w-4" />} title="Private by design" text="Owner-only access and server-side authorization." />
+                        <Feature icon={<Sparkles className="h-4 w-4" />} title="Research workflow" text="Daily review, candidates, backtests and Monte Carlo." />
                     </div>
                 </div>
-                <div className="flex-1 relative">
-                    <Image src="/assets/images/dashboard.png" alt="Dashboard Preview" width={1440} height={1150} className="auth-dashboard-preview absolute top-0" />
-                </div>
             </section>
-
         </main>
-    )
+    );
+};
+
+function Feature({ icon, title, text }: { icon: React.ReactNode; title: string; text: string }) {
+    return (
+        <div className="rounded-2xl border border-border bg-card/75 p-4 shadow-sm">
+            <div className="mb-3 grid h-8 w-8 place-items-center rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-300">
+                {icon}
+            </div>
+            <div className="text-sm font-semibold text-foreground">{title}</div>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{text}</p>
+        </div>
+    );
 }
-export default Layout
+
+export default Layout;
