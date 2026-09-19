@@ -1,511 +1,56 @@
-<p align="center">
-  <b>New from Open Dev Society:</b> <a href="https://github.com/Open-Dev-Society/kitbash"><b>kitbash</b></a>. Before you build, find out which parts already exist on GitHub. Borrow them, adapt them, or write the rest.
-</p>
+# OSTRADE
 
-<a href="https://trendshift.io/repositories/15728?utm_source=repository-badge&amp;utm_medium=badge&amp;utm_campaign=badge-repository-15728" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/repositories/15728" alt="Open-Dev-Society%2FOpenStock | Trendshift" width="250" height="55"/></a>
-<a href="https://trendshift.io/repositories/15728?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-15728" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/15728/daily?language=TypeScript" alt="Open-Dev-Society%2FOpenStock | Trendshift" width="250" height="55"/></a>
-<a href="https://trendshift.io/repositories/15728?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-15728" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/15728/weekly?language=TypeScript" alt="Open-Dev-Society%2FOpenStock | Trendshift" width="250" height="55"/></a>
+Private Daily EOD Swing Trading Research Terminal.
 
-<a href="https://trendshift.io/repositories/15728?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-15728" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/15728/monthly?language=TypeScript" alt="Open-Dev-Society%2FOpenStock | Trendshift" width="250" height="55"/></a>
- <a href="https://www.star-history.com/open-dev-society/openstock"><img src="https://api.star-history.com/badge?repo=Open-Dev-Society/OpenStock" alt="Star History Rank" /></a>
- 
-<div align="center">
-  <br />
-  <a href="#" target="_blank">
-    <img src="./public/assets/images/dashboard.png" alt="Project Banner" />
-  </a>
-  © Open Dev Society. This project is licensed under AGPL-3.0; if you modify, redistribute, or deploy it (including as a web service), you must release your source code under the same license and credit the original authors.
-  <br />
-  <br/>
+OSTRADE is a single-owner research workspace for scanning BIST and US universes, reviewing deterministic swing setups, saving candidates, journaling real trades, backtesting the same rule engine used in production, and running risk/Monte Carlo analysis.
 
-  <div>
-    <img src="https://img.shields.io/badge/-Next.js-black?style=for-the-badge&logoColor=white&logo=next.js&color=000000" alt="Next.js badge" />
-    <img src="https://img.shields.io/badge/-TypeScript-black?style=for-the-badge&logoColor=white&logo=typescript&color=3178C6"/>
-    <img src="https://img.shields.io/badge/-Tailwind%20CSS-black?style=for-the-badge&logoColor=white&logo=tailwindcss&color=38B2AC"/>
-    <img src="https://img.shields.io/badge/-shadcn/ui-black?style=for-the-badge&logoColor=white&logo=shadcnui&color=000000"/>
-    <img src="https://img.shields.io/badge/-Radix%20UI-black?style=for-the-badge&logoColor=white&logo=radixui&color=000000"/>
-    <img src="https://img.shields.io/badge/-Better%20Auth-black?style=for-the-badge&logoColor=white&logo=betterauth&color=000000"/>
-    <img src="https://img.shields.io/badge/-MongoDB-black?style=for-the-badge&logoColor=white&logo=mongodb&color=00A35C"/>
-    <img src="https://img.shields.io/badge/-Inngest-black?style=for-the-badge&logoColor=white&logo=inngest&color=000000"/>
-    <img src="https://img.shields.io/badge/-Nodemailer-black?style=for-the-badge&logoColor=white&logo=gmail&color=EA4335"/>
-    <img src="https://img.shields.io/badge/-TradingView-black?style=for-the-badge&logoColor=white&logo=tradingview&color=2962FF"/>
-    <img src="https://img.shields.io/badge/-Finnhub-black?style=for-the-badge&logoColor=white&color=30B27A"/>
-    <img src="https://img.shields.io/badge/-CodeRabbit-black?style=for-the-badge&logoColor=white&logo=coderabbit&color=9146FF"/>
-  </div>
-</div>
+## Core workflow
 
-# OpenStock — Private Swing Trading Research Terminal
+1. Sync market data from **Market Data**
+2. Generate **Daily Analysis**
+3. Review **Daily Review / Weekly Review**
+4. Run the **Scanner**
+5. Save interesting setups as **Candidates**
+6. Log only real executions in **Journal**
+7. Validate ideas with **Backtest** and **Monte Carlo**
 
-> **This is a private fork.** This repository is [Open-Dev-Society/OpenStock](https://github.com/Open-Dev-Society/OpenStock)
-> (AGPL-3.0) re-purposed as a personal, single-owner **research terminal**
-> for identifying, analyzing, and tracking swing-trading setups. It is not
-> a public product, it does not execute trades, and it does not generate
-> AI buy/sell signals — every score and rule you'll see is deterministic,
-> transparent code, not a black box. See:
-> - [`docs/architecture.md`](docs/architecture.md) — what changed from upstream OpenStock, and why
-> - [`docs/swing-engine.md`](docs/swing-engine.md) — the analysis engine
-> - [`docs/deployment-netlify.md`](docs/deployment-netlify.md) — deploying your own private instance
-> - [`PROGRESS.md`](PROGRESS.md) — what's implemented versus planned
->
-> The rest of this README is the original upstream OpenStock documentation,
-> kept intact per the AGPL-3.0 license and to credit the original authors —
-> update it as the fork's own features (see the docs above) diverge further
-> from the base app it started from.
+## Architecture
 
-OpenStock is an open-source alternative to expensive market platforms. Track real-time prices, set personalized alerts, and explore detailed company insights — built openly, for everyone, forever free.
-
-Note: OpenStock is community-built and not a brokerage. Market data may be delayed based on provider rules and your configuration. Nothing here is financial advice.
-
-## 📋 Table of Contents
-
-1. ✨ [Introduction](#introduction)
-2. 🌍 [Open Dev Society Manifesto](#manifesto)
-3. ⚙️ [Tech Stack](#tech-stack)
-4. 🔋 [Features](#features)
-5. 🤸 [Quick Start](#quick-start)
-6. 📅 [Daily & Weekly Workflow](#daily-weekly-workflow)
-7. 🐳 [Docker Setup](#docker-setup)
-8. 🔐 [Environment Variables](#environment-variables)
-9. 🧱 [Project Structure](#project-structure)
-10. 📡 [Data & Integrations](#data--integrations)
-11. 🌍 [Market Support](#market-support)
-12. 🧪 [Scripts & Tooling](#scripts--tooling)
-13. 🤝 [Contributing](#contributing)
-14. 🛡️ [Security](#security)
-15. 📜 [License](#license)
-16. 🙏 [Acknowledgements](#acknowledgements)
-
-## ✨ Introduction <a name="introduction"></a>
-
-OpenStock (OSTRADE) is a Daily EOD Swing Trading Research Terminal powered by Next.js (App Router), shadcn/ui and Tailwind CSS, Better Auth for authentication, MongoDB for persistence, Stooq/Yahoo Finance for core market data (no API key required — see [`docs/market-data.md`](docs/market-data.md); Finnhub is optional enrichment), and TradingView widgets for charts and market views. BIST (Borsa İstanbul) is supported alongside US markets — see [`docs/bist.md`](docs/bist.md).
-
-## 🌍 Open Dev Society Manifesto <a name="manifesto"></a>
-
-We live in a world where knowledge is hidden behind paywalls. Where tools are locked in subscriptions. Where information is twisted by bias. Where newcomers are told they’re not “good enough” to build.
-
-We believe there’s a better way.
-
-- Our Belief: Technology should belong to everyone. Knowledge should be open, free, and accessible. Communities should welcome newcomers with trust, not gatekeeping.
-- Our Mission: Build free, open-source projects that make a real difference:
-    - Tools that professionals and students can use without barriers.
-    - Knowledge platforms where learning is free, forever.
-    - Communities where every beginner is guided, not judged.
-    - Resources that run on trust, not profit.
-- Our Promise: We will never lock knowledge. We will never charge for access. We will never trade trust for money. We run on transparency, donations, and the strength of our community.
-- Our Call: If you’ve ever felt you didn’t belong, struggled to find free resources, or wanted to build something meaningful — you belong here.
-
-Because the future belongs to those who build it openly.
-
-## ⚙️ Tech Stack <a name="tech-stack"></a>
-
-Core
-- Next.js 15 (App Router), React 19
+- Next.js 15 / React 19
 - TypeScript
-- Tailwind CSS v4 (via @tailwindcss/postcss)
-- shadcn/ui + Radix UI primitives
-- Lucide icons
+- Tailwind CSS v4
+- Better Auth
+- MongoDB Atlas
+- Yahoo Finance EOD for BIST
+- Stooq/Yahoo routing for supported US historical data
+- Netlify deployment
+- GitHub CI
 
-Auth & Data
-- Better Auth (email/password) with MongoDB adapter
-- MongoDB + Mongoose
-- Stooq + Yahoo Finance for core EOD market data (no API key needed);
-  Finnhub API (optional) for richer live quotes, financials, and news
-- TradingView embeddable widgets
+See:
+- [docs/architecture.md](docs/architecture.md)
+- [docs/market-data.md](docs/market-data.md)
+- [docs/bist.md](docs/bist.md)
+- [docs/backtesting.md](docs/backtesting.md)
+- [docs/deployment-netlify.md](docs/deployment-netlify.md)
+- [PROGRESS.md](PROGRESS.md)
 
-Automation & Comms
-- Inngest (events, cron, AI inference via Gemini)
-- Nodemailer (Gmail transport)
-- next-themes, cmdk (command palette), react-hook-form
+## Research principles
 
-Language composition
-- TypeScript (~93.4%), CSS (~6%), JavaScript (~0.6%)
+- End-of-day data, not intraday execution.
+- Deterministic and explainable setup scoring.
+- Candidates are research snapshots, not trades.
+- Journal records actual user-entered trades only.
+- Backtests avoid look-ahead by evaluating only bars available at each historical decision point.
+- Historical index tests still carry survivorship-bias risk when today’s constituent list is applied backward.
 
-## 🔋 Features <a name="features"></a>
+## Private deployment
 
-- Authentication
-    - Email/password auth with Better Auth + MongoDB adapter
-    - Protected routes enforced server-side — the `(root)` layout checks
-      the session on every page render, and every server action
-      independently re-verifies it (never relies on the page alone) — see
-      [`docs/auth-audit.md`](docs/auth-audit.md)
-- Global search and Command + K palette
-    - Local search over every tracked universe (US + BIST), needing no API key, enriched with Finnhub's live search when configured
-    - Popular stocks when idle; debounced querying
-- Watchlist
-    - Per-user watchlist stored in MongoDB (unique symbol per user)
-- Stock details
-    - TradingView symbol info, candlestick/advanced charts, baseline, technicals
-    - Company profile and financials widgets
-    - Optional cross-source sentiment insights for Reddit, X.com, news, and Polymarket
-- **Swing Analysis** (new — see [`docs/swing-engine.md`](docs/swing-engine.md))
-    - Deterministic technical-indicator engine (SMA/EMA/RSI/MACD/Stochastic/Bollinger/ATR/volume/momentum/volatility)
-    - Transparent, rule-by-rule swing score (0–100) with a documented trade plan (entry/stop/targets) — never a black-box number
-    - Reads a local, normalized daily-bar database (Stooq/Yahoo, synced via `/data`) — see [`docs/daily-data-engine.md`](docs/daily-data-engine.md)
-- Market overview
-    - Heatmap, quotes, and top stories (TradingView widgets)
-- Personalized onboarding
-    - Collects country, investment goals, risk tolerance, preferred industry
-- Email & automation
-    - AI-personalized welcome email (Gemini via Inngest) — optional, skipped automatically if unconfigured
-    - Price-alert checks every 5 minutes (Inngest cron)
-- Private access (new — see [`docs/architecture.md`](docs/architecture.md))
-    - `AUTHORIZED_EMAIL` allowlist restricts sign-up to the deployment's owner
-- Polished UI
-    - shadcn/ui components, Radix primitives, Tailwind v4 design tokens
-    - Dark theme by default
-- Keyboard shortcut
-    - Cmd/Ctrl + K for quick actions/search
+The current build is designed as an owner-only terminal. `AUTHORIZED_EMAIL` is enforced server-side. Public signup, multi-tenant privacy, billing, brokerage execution and regulated-advice workflows are out of scope.
 
-## 🤸 Quick Start <a name="quick-start"></a>
+## License and upstream attribution
 
-Prerequisites
-- Node.js 20+ and pnpm or npm
-- MongoDB connection string (MongoDB Atlas or local via Docker Compose)
-- Core market data (Stooq/Yahoo) needs no API key at all
-- Everything else (Finnhub, email, AI, Adanos, Inngest) is optional — see [`.env.example`](.env.example) and [`docs/market-data.md`](docs/market-data.md)
+This repository is a modified AGPL-3.0 codebase derived from the upstream Open Dev Society / OpenStock project. The original copyright and license notices remain applicable to the upstream portions of the code.
 
-Clone and install
-```bash
-git clone <your-fork-url>
-cd ostrade
+See [LICENSE](LICENSE) and the Git history for attribution details.
 
-# choose one:
-pnpm install
-# or
-npm install
-```
-
-Configure environment
-- Create a `.env` file (see [Environment Variables](#environment-variables)).
-- Verify DB connectivity:
-```bash
-pnpm test:db
-# or
-npm run test:db
-```
-
-Run development
-```bash
-# Next.js dev (Turbopack)
-pnpm dev
-# or
-npm run dev
-```
-
-Run Inngest locally (workflows, cron, AI)
-```bash
-npx inngest-cli@latest dev
-```
-
-Build & start (production)
-```bash
-pnpm build && pnpm start
-# or
-npm run build && npm start
-```
-
-Open http://localhost:3000 to view the app.
-
-## 📅 Daily & Weekly Workflow <a name="daily-weekly-workflow"></a>
-
-OSTRADE has **no automatic market-data sync yet** — this is intentional
-for the first production deployment (see
-[`docs/daily-data-engine.md`](docs/daily-data-engine.md)'s "What's
-optional vs. automatic today"). The normal evening routine:
-
-1. **Log in.**
-2. Visit **`/data`** and click **Update BIST** and/or **Update US** —
-   pulls the day's new daily bars into the local database. First run ever
-   seeds full history (slower); every run after that is incremental.
-3. Click **Generate Daily Analysis** on the same page — computes that
-   session's swing scores for every tracked universe.
-4. Visit **`/review`** — new setups, newly-qualified candidates,
-   improved/deteriorated scores, and anything that lost qualification
-   since last time.
-5. Visit **`/scanner`** — full scan/filter/sort, save anything worth
-   tracking as a candidate.
-6. Check **`/candidates`** for anything already being tracked.
-
-**Friday / weekend**, in addition to the above: visit
-**`/review/weekly`** for the week's aggregate picture, and optionally
-review **`/backtest`** / **`/statistics`** if you're evaluating strategy
-performance rather than looking for new setups.
-
-Candidate outcome tracking (`checkCandidateOutcomes`, daily) and the
-5-minute price-alert check (`checkStockAlerts`) already run automatically
-via Inngest — only the market-data sync and daily-analysis generation are
-manual today. `/data` also shows freshness/staleness per market so it's
-obvious when a step was skipped.
-
-## 🐳 Docker Setup <a name="docker-setup"></a>
-
-You can run OpenStock and MongoDB easily with Docker Compose.
-
-1) Ensure Docker and Docker Compose are installed.
-
-2) docker-compose.yml includes two services:
-- openstock (this app)
-- mongodb (MongoDB database with a persistent volume)
-
-3) Create your `.env` (see examples below). For the Docker setup, use a local connection string like:
-```env
-MONGODB_URI=mongodb://root:example@mongodb:27017/openstock?authSource=admin
-```
-
-4) Start the stack:
-```bash
-# from the repository root
-docker compose up -d mongodb && docker compose up -d --build
-```
-
-5) Access the app:
-- App: http://localhost:3000
-- MongoDB is available inside the Docker network at host mongodb:27017
-
-Notes
-- The app service depends_on the mongodb service.
-- Credentials are defined in Compose for the MongoDB root user; authSource=admin is required on the connection string for root.
-- Data persists across restarts via the docker volume.
-
-Optional: Example MongoDB service definition used in this project:
-```yaml
-services:
-  mongodb:
-    image: mongo:7
-    container_name: mongodb
-    restart: unless-stopped
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: example
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo-data:/data/db
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-volumes:
-  mongo-data:
-```
-
-## 🔐 Environment Variables <a name="environment-variables"></a>
-
-See [`.env.example`](.env.example) for the authoritative, up-to-date list —
-it documents every variable the code actually reads, with optional ones
-clearly marked. Copy it to `.env` for local development.
-
-```env
-# Core (required)
-NODE_ENV=development
-
-# Database (required) — Atlas or the local Docker Compose instance
-MONGODB_URI=mongodb+srv://<user>:<pass>@<cluster>/<db>?retryWrites=true&w=majority
-# or, for Docker Compose: mongodb://root:example@localhost:27017/openstock?authSource=admin
-
-# Better Auth (required)
-BETTER_AUTH_SECRET=your_better_auth_secret
-BETTER_AUTH_URL=http://localhost:3000
-
-# Private terminal access (optional, strongly recommended once your own
-# account exists — see docs/architecture.md)
-AUTHORIZED_EMAIL=
-
-# Everything below is optional — the app boots and every core feature
-# (search, scanner, stock analysis, backtesting, candidate tracking) works
-# without it. Core market data (Stooq/Yahoo) needs no key at all. See
-# .env.example for what each one enables.
-# FINNHUB_API_KEY / FINNHUB_BASE_URL        (richer live quotes/financials/news)
-# ADANOS_API_KEY / ADANOS_API_BASE_URL     (sentiment card)
-# AI_PROVIDER / GEMINI_API_KEY / etc.       (welcome-email copy only)
-# INNGEST_SIGNING_KEY / INNGEST_EVENT_KEY   (background jobs, once deployed)
-# NODEMAILER_EMAIL / NODEMAILER_PASSWORD    (password reset + welcome email)
-```
-
-Notes
-- Keep all keys server-side. `FINNHUB_API_KEY` deliberately has no
-  `NEXT_PUBLIC_` prefix — it's read only inside `'use server'` files and
-  must never end up in the browser bundle.
-- In production, prefer a dedicated SMTP provider over a personal Gmail.
-- Do not hardcode secrets in the Dockerfile; use `.env` and Compose.
-- For Netlify specifically, see [`docs/deployment-netlify.md`](docs/deployment-netlify.md).
-
-## 🧱 Project Structure <a name="project-structure"></a>
-
-```
-app/
-  (auth)/
-    layout.tsx           # force-dynamic; bounces signed-in users away
-    sign-in/page.tsx
-    sign-up/
-      page.tsx           # server-side AUTHORIZED_EMAIL gate (docs/architecture.md)
-      SignUpForm.tsx      # the actual client form
-  (root)/
-    layout.tsx           # force-dynamic; requires a session
-    page.tsx
-    help/page.tsx
-    stocks/[symbol]/page.tsx   # includes the Swing Analysis panel
-  api/inngest/route.ts
-  globals.css
-  layout.tsx
-components/
-  ui/…          # shadcn/radix primitives (button, dialog, command, input, etc.)
-  forms/…       # InputField, SelectField, CountrySelectField, FooterLink
-  stocks/SwingAnalysisPanel.tsx
-  Header.tsx, Footer.tsx, SearchCommand.tsx, WatchlistButton.tsx, …
-database/
-  models/{watchlist,alert}.model.ts
-  mongoose.ts
-lib/
-  actions/…       # server actions (auth, finnhub adapter, watchlist, alert, swing)
-  better-auth/…    # lazily-initialized Better Auth instance
-  private-access.ts
-  inngest/…       # client, functions (welcome email + price-alert cron), prompts
-  nodemailer/…    # transporter, email templates
-  market-data/     # provider-agnostic market data — see docs/market-data.md
-    types.ts, service.ts, providers/{finnhub,stooq}.ts
-  technical/       # pure indicator functions — see docs/swing-engine.md
-  swing/           # the rule engine built on lib/technical — see docs/swing-engine.md
-  constants.ts, utils.ts
-scripts/
-  test-db.ts, check-env.mjs
-types/
-  global.d.ts
-docs/              # architecture, deployment, market-data, swing-engine, strategy-config, …
-PROGRESS.md         # what's implemented vs. planned
-netlify.toml        # @netlify/plugin-nextjs runtime config
-next.config.ts
-postcss.config.mjs   # Tailwind v4 postcss setup
-components.json      # shadcn config
-public/assets/images/   # logos and screenshots
-```
-
-## 📡 Data & Integrations <a name="data--integrations"></a>
-
-- Market data provider abstraction (see [`docs/market-data.md`](docs/market-data.md), [`docs/daily-data-engine.md`](docs/daily-data-engine.md), [`docs/bist.md`](docs/bist.md))
-    - Nothing outside `lib/market-data/` talks to a specific provider (Stooq/Yahoo/Finnhub) directly, or constructs a provider-specific symbol.
-    - Historical daily EOD bars: Stooq (US primary) → Yahoo Finance (US fallback, BIST primary) — no API key for either. Synced into a local, permanent MongoDB database (`/data` admin page); every analysis feature (scanner, stock page, backtester, candidate tracking) reads that local database, not a live provider, on every request.
-    - Finnhub (optional): richer live quotes/company profiles (falls back to Yahoo when unset), plus financials/news/search enrichment (search also works fully locally with no key at all). Set `FINNHUB_API_KEY` (server-side only — no `NEXT_PUBLIC_` prefix) and optionally `FINNHUB_BASE_URL` if you want it.
-    - Free tiers may return delayed quotes; respect rate limits and terms.
-
-- Swing Analysis Engine (see [`docs/swing-engine.md`](docs/swing-engine.md))
-    - Deterministic technical indicators (`lib/technical/`) and a configurable rule engine (`lib/swing/`) — no AI involved in scoring or rules.
-
-- Adanos sentiment insights (optional)
-    - Structured stock sentiment snapshots across Reddit, X.com, news, and Polymarket.
-    - Set `ADANOS_API_KEY`; optionally override the API host with `ADANOS_API_BASE_URL`.
-    - Used only for the stock detail sentiment card and does not replace Finnhub or TradingView.
-
-- TradingView
-    - Embeddable widgets used for charts, heatmap, quotes, and timelines.
-    - External images from `i.ibb.co` are allowlisted in `next.config.ts`.
-
-- Better Auth + MongoDB
-    - Email/password with MongoDB adapter.
-    - Session validation via middleware; most routes are protected, with public exceptions for `sign-in`, `sign-up`, assets and Next internals.
-
-- Inngest
-    - Workflows:
-        - `app/user.created` → AI-personalized Welcome Email (optional; skipped if unconfigured)
-        - Cron `*/5 * * * *` → checks active price alerts against current quotes
-    - Local dev: `npx inngest-cli@latest dev`.
-
-- Email (Nodemailer)
-    - Gmail transport. Update credentials or switch to your SMTP provider.
-    - Template for the welcome email; password-reset email is separate (`lib/nodemailer/reset-password.ts`).
-
-
-## 🌍 Market Support <a name="market-support"></a>
-
-This section describes TradingView/Finnhub's general chart and quote
-coverage. OSTRADE's own local EOD swing-analysis engine (scanner, stock
-analysis, backtesting, candidate tracking) currently covers **US markets
-and BIST (Borsa İstanbul)** specifically — see
-[`docs/market-data.md`](docs/market-data.md) and
-[`docs/bist.md`](docs/bist.md).
-
-OpenStock supports **30+ international stock exchanges** including NSE, LSE, TSX, and more. However, please be aware of important limitations based on our data providers.
-
-**Quick Facts**:
-- ✅ Finnhub supports most global exchanges
-- ⚠️ TradingView free tier has restrictions on emerging markets (India NSE, Vietnam, etc.)
-- 📊 Real-time data for non-US stocks is delayed by 15+ minutes on free tier
-
-**See [MARKET_SUPPORT.md](./MARKET_SUPPORT.md) for**:
-- Complete list of supported exchanges
-- Known limitations and workarounds
-- Why "This symbol is only available on TradingView" appears
-- How to upgrade for broader market coverage
-- Future improvements planned
-
-For the latest supported symbols and exchanges, see [Finnhub's exchange list](https://finnhub.io/docs/api/symbol-lookup).
-
-
-## 🧪 Scripts & Tooling <a name="scripts--tooling"></a>
-
-Package scripts
-- `dev`: Next.js dev server with Turbopack
-- `build`: Production build (Turbopack) — must succeed with no `.env` present; see [`docs/architecture.md`](docs/architecture.md)
-- `start`: Run production server
-- `lint`: ESLint (strict — no `ignoreDuringBuilds` escape hatch)
-- `typecheck`: `tsc --noEmit` (strict — no `ignoreBuildErrors` escape hatch)
-- `test` / `test:watch`: Vitest
-- `test:db`: Validate DB connectivity
-- `check-env`: Reports which environment variables are set/missing
-
-Developer experience
-- TypeScript strict mode
-- Tailwind CSS v4 (no separate tailwind.config needed)
-- shadcn/ui components with Radix primitives
-- cmdk command palette, next-themes, lucide-react icons
-
-## 🤝 Contributing <a name="contributing"></a>
-
-You belong here. Whether you’re a student, a self-taught dev, or a seasoned engineer — contributions are welcome.
-
-- Open an issue to discuss ideas and bugs
-- Look for “good first issue” or “help wanted”
-- Keep PRs focused; add screenshots for UI changes
-- Be kind, guide beginners, no gatekeeping — that’s the ODS way
-
-## 🛡️ Security <a name="security"></a>
-
-If you discover a vulnerability:
-- Do not open a public issue
-- Email: <a href="mailto:opendevsociety@cc.cc">opendevsociety@cc.cc</a>
-- We'll coordinate responsible disclosure and patch swiftly
-
-## 📜 License <a name="license"></a>
-
-OpenStock is and will remain free and open for everyone. This project is licensed under the AGPL-3.0 License - see the LICENSE file for details.
-
-## 🙏 Acknowledgements <a name="acknowledgements"></a>
-
-- Finnhub for accessible market data
-- TradingView for embeddable market widgets
-- shadcn/ui, Radix UI, Tailwind CSS, Next.js community
-- Inngest for dependable background jobs and workflows
-- Better Auth for simple and secure authentication
-- All contributors who make open tools possible
-
-— Built openly, for everyone, forever free. Open Dev Society.
-
-> © Open Dev Society. This project is licensed under AGPL-3.0; if you modify, redistribute, or deploy it (including as a web service), you must release your source code under the same license and credit the original authors.
-
-## Our Honourable Contributors
-- [ravixalgorithm](https://github.com/ravixalgorithm) - Developed the entire application from the ground up, including authentication, UI design, API and AI integration, and deployment.
-- [Priyanshuu00007](https://github.com/Priyanshuu00007) - Created the official OpenStock logo and contributed to the project’s visual identity.
-- [chinnsenn](https://github.com/chinnsenn) - Set up Docker configuration for the repository, ensuring a smooth development and deployment process.
-- [koevoet1221](https://github.com/koevoet1221) - Resolved MongoDB Docker build issues, improving the project’s overall stability and reliability.
-- [ettoreciolli1](https://github.com/ettoreciolli1) - updated Readme
-
-
-
-## Special thanks
-Huge thanks to [Adrian Hajdin (JavaScript Mastery)](https://github.com/adrianhajdin) — his excellent Stock Market App tutorial was instrumental in building OpenStock for the open-source community under the Open Dev Society.
-
-GitHub: [adrianhajdin](https://github.com/adrianhajdin)
-YouTube tutorial: [Stock Market App Tutorial](https://www.youtube.com/watch?v=gu4pafNCXng)
-YouTube channel: [JavaScript Mastery](https://www.youtube.com/@javascriptmastery)
+OSTRADE is the product identity of this private fork. The research interface intentionally does not present the upstream product branding.
