@@ -278,7 +278,7 @@ function ResultsTable({ rows }: { rows: DailyReviewRow[] }) {
                                     {r.symbol}
                                 </Link>
                             </td>
-                            <td className="px-3 py-3 text-right">{formatPrice(r.close)}</td>
+                            <td className="px-3 py-3 text-right">{formatPrice(r.close, r.market === 'TR' ? 'TRY' : 'USD')}</td>
                             <td className="px-3 py-3">
                                 <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${CLASSIFICATION_BADGE_CLASSES[r.changeClassification]}`}>
                                     {CLASSIFICATION_LABELS[r.changeClassification]}
