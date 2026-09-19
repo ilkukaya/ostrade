@@ -6,6 +6,7 @@ export const NAV_ITEMS = [
     { href: '/journal', label: 'Journal' },
     { href: '/statistics', label: 'Statistics' },
     { href: '/backtest', label: 'Backtest' },
+    { href: '/monte-carlo', label: 'Monte Carlo' },
     { href: '/watchlist', label: 'Watchlist' },
     { href: '/api-docs', label: 'API Docs' },
 ];

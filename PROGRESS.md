@@ -189,11 +189,22 @@ Status legend: ✅ done · 🟡 partial · ⬜ not started
   (long-only, daily timeframe, one open position per symbol at a time, no
   market-regime breakdown yet)
 
-## Milestone 9 — Monte Carlo (Phase 13) — ⬜ Not implemented yet
+## Milestone 9 — Monte Carlo (Phase 13)
 
-Depends on Milestone 8 (needs a real trade/R-multiple distribution to
-resample from — this is about simulating equity-curve paths from actual
-historical outcomes, not about forecasting prices).
+- ✅ `/monte-carlo` — bootstrap resampling (with replacement) of a real
+  R-multiple distribution from either a completed `/backtest` run or the
+  owner's own closed Trade Journal entries; never a fabricated
+  distribution (`lib/monte-carlo/simulate.ts`)
+- ✅ Deterministic/seeded (`lib/monte-carlo/random.ts` — a small seedable
+  PRNG, since `Math.random()` can't be reproduced for debugging)
+- ✅ Outputs: ending-equity P5/P25/P50/P75/P95, max-drawdown distribution
+  + probability of exceeding 10/20/30% drawdown, max losing-streak
+  distribution, and risk of ruin against an explicit, configurable
+  threshold (kept distinct from peak-relative drawdown — see
+  `docs/monte-carlo.md` for why those are two different metrics)
+- ⬜ **Not built** (explicitly the lower-priority half of this milestone):
+  a separate "Scenario Simulation" of possible future *prices* — if ever
+  added, must never be labeled "Prediction"; see `docs/monte-carlo.md`
 
 ## Milestone 10 — Portfolio analytics, BIST (Phase 14–15) — ⬜ Not implemented yet
 
